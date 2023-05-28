@@ -1,0 +1,6 @@
+nimcache
+testresults
+tests/*
+examples/*
+!*.nim
+bin/
