@@ -3,4 +3,5 @@ testresults
 tests/*
 examples/*
 !*.nim
+!*.nims
 bin/
