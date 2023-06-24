@@ -27,6 +27,6 @@ entity
 
 entity.detach(Velocity)
 
-check entity.has(Position)
+check entity.has("Position")
 
 check not entity.has(Velocity)
