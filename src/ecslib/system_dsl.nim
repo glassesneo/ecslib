@@ -4,8 +4,8 @@ import
   ./type_definition
 
 type
-  ComponentQuery* = tuple
-    typeName, condition: NimNode
+  ComponentCondition* = tuple
+    typeNameNode, conditionNode: NimNode
 
 proc parseCondition(node: NimNode): NimNode =
   if node.kind == nnkCall and node.len == 2:
@@ -44,14 +44,14 @@ proc parseCondition(node: NimNode): NimNode =
 
   error "Unsupported syntax", node
 
-proc parseTypeNode*(node: NimNode): ComponentQuery =
+proc parseTypeNode*(node: NimNode): ComponentCondition =
   node.expectKind nnkBracketExpr
 
-  result.typeName = node[0]
+  result.typeNameNode = node[0]
 
   let condition = node[1].parseCondition()
 
-  result.condition = quote do:
+  result.conditionNode = quote do:
     (e: Entity) => `condition`
 
 macro runSystem*(world, returner: typed): untyped =

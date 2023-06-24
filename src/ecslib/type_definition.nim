@@ -31,12 +31,10 @@ type
     id*: EntityId
     world*: World
 
-  ComponentCondition* = (Entity) -> bool
-
   AbstructSystem* = ref object of RootObj
 
   System*[T: proc] = ref object of AbstructSystem
-    conditions*: Table[string, ComponentCondition]
+    conditions*: Table[string, (Entity) -> bool]
     update*: T
 
   SystemReturner*[T: proc] = () -> System[T]

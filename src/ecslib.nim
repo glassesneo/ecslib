@@ -7,7 +7,7 @@ macro system*(procDef: untyped{nkProcDef}): untyped =
   let systemName = procDef.name
   let returnerName = systemName
   let args = nnkFormalParams.newNimNode().add(newEmptyNode())
-  var queries: seq[ComponentQuery]
+  var conditions: seq[ComponentCondition]
 
   for identDef in procDef[3][1..^1]:
     if identDef.len > 3:
@@ -26,7 +26,7 @@ macro system*(procDef: untyped{nkProcDef}): untyped =
 
       args.add(shapedIdentDef)
 
-      queries.add parseTypeNode(identDef[1])
+      conditions.add parseTypeNode(identDef[1])
 
     else:
       let typeNode = nnkBracketExpr.newTree(
@@ -47,12 +47,12 @@ macro system*(procDef: untyped{nkProcDef}): untyped =
     proc `returnerName`*: System[`systemType`] =
       result = System[`systemType`].new()
 
-  for query in queries:
+  for condition in conditions:
     let
-      typeNameLit = newStrLitNode(query.typeName.strVal)
-      condition = query.condition
+      typeNameLit = newStrLitNode(condition.typeNameNode.strVal)
+      conditionNode = condition.conditionNode
     result.body.add quote do:
-      result.conditions[`typeNameLit`] = `condition`
+      result.conditions[`typeNameLit`] = `conditionNode`
 
   let updateProc = nnkLambda.newTree(
     newEmptyNode(),
