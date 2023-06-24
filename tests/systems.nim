@@ -41,7 +41,7 @@ echo entity1[Position].x
 echo entity2[Position].x
 echo "==================="
 
-world.runSystem(updatePositionSystem)
+world.runSystem(updatePosition)
 
 echo entity1[Position].x
 echo entity2[Position].x

@@ -85,8 +85,19 @@ proc has*(component: AbstructComponent, entity: Entity): bool =
 proc deleteEntity(component: AbstructComponent, entity: Entity) =
   component.indexTable.del(entity)
 
+iterator items*[T](component: Component[T]): T =
+  for i in component.indexTable.values:
+    yield component.storage[i]
+
+iterator pairs*[T](component: Component[T]): tuple[key: Entity, val: T] =
+  for e, i in component.indexTable.pairs:
+    yield (e, component.storage[i])
+
 proc new*(_: type World): World =
   World(nextId: 1)
+
+proc entities*(world: World): seq[Entity] =
+  world.entities
 
 proc addResource*[T](world: World, data: T) =
   world.resources[T.name] = Resource[T](data: data)
@@ -157,3 +168,13 @@ proc detach*(entity: Entity, T: typedesc) =
 proc delete*(entity: Entity) =
   entity.world.deleteEntity(entity)
   entity.id = InvalidEntityId
+
+proc match*[T; U: proc](
+    component: Component[T],
+    system: System[U]
+): Component[T] =
+  result = Component[T].new()
+  for entity in component.indexTable.keys:
+    for typeName, condition in system.conditions.pairs:
+      if entity.has(typeName) and condition(entity):
+        result[entity] = component[entity]
