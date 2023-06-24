@@ -5,7 +5,7 @@ import
 
 macro system*(procDef: untyped{nkProcDef}): untyped =
   let systemName = procDef.name
-  let returnerName = ident systemName.strVal & "System"
+  let returnerName = systemName
   let args = nnkFormalParams.newNimNode().add(newEmptyNode())
   var queries: seq[ComponentQuery]
 
@@ -26,8 +26,7 @@ macro system*(procDef: untyped{nkProcDef}): untyped =
 
       args.add(shapedIdentDef)
 
-      let query = parseTypeNode(identDef[1])
-      queries.add(query)
+      queries.add parseTypeNode(identDef[1])
 
     else:
       let typeNode = nnkBracketExpr.newTree(
@@ -53,8 +52,7 @@ macro system*(procDef: untyped{nkProcDef}): untyped =
       typeNameLit = newStrLitNode(query.typeName.strVal)
       condition = query.condition
     result.body.add quote do:
-      result.conditions[`typeNameLit`] = proc(entity: Entity): bool =
-        `condition`
+      result.conditions[`typeNameLit`] = `condition`
 
   let updateProc = nnkLambda.newTree(
     newEmptyNode(),
@@ -72,4 +70,5 @@ macro system*(procDef: untyped{nkProcDef}): untyped =
     result.update = `updateProc`
 
 export
-  ecslib.type_definition
+  ecslib.type_definition,
+  ecslib.system_dsl

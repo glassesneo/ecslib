@@ -1,5 +1,6 @@
 import
   std/macros,
+  std/sugar,
   ./type_definition
 
 type
@@ -12,10 +13,10 @@ proc parseCondition(node: NimNode): NimNode =
     case node[0].strVal
     of "with":
       result = quote do:
-        entity.has(`arg`)
+        e.has(`arg`)
     of "without":
       result = quote do:
-        not entity.has(`arg`)
+        not e.has(`arg`)
     else:
       error "Unsupported syntax", node
     return
@@ -50,4 +51,24 @@ proc parseTypeNode*(node: NimNode): ComponentQuery =
 
   let condition = node[1].parseCondition()
 
-  result.condition = newStmtList(condition)
+  result.condition = quote do:
+    (e: Entity) => `condition`
+
+macro runSystem*(world, returner: typed): untyped =
+  let impl = returner.getImpl()
+  let returnerName = impl[0]
+  let systemName = ident "system"
+
+  result = nnkBlockStmt.newTree(
+    newEmptyNode(),
+    newStmtList()
+  )
+
+  result[1] = quote do:
+    let `systemName` = `returnerName`()
+    system.update()
+
+  for identDef in impl[3][0][2][0][1..^1]:
+    let typeIdent = identDef[1][1]
+    result[1][1].add quote do:
+      `world`.componentOf(`typeIdent`).match(`systemName`)
