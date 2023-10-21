@@ -4,8 +4,12 @@ import
   std/tables,
   ./type_definition
 
+type
+  EntityQuery* = ref object
+    entities*: seq[Entity]
+
 macro system*(theProc: untyped): untyped =
-  # proc f(queryTable: [All(Position), Any(Attack, Magic), None()])
+  # proc f(query: [All(Position), Any(Attack, Magic), None()])
   let queryTableIdentDef = theProc.params[1]
 
   var queryTable: Table[string, seq[string]] = initTable[string, seq[string]]()

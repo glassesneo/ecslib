@@ -38,11 +38,13 @@ proc updatePosition(query: [All(Velocity, Position)]) {.system.} =
     pos.x += vel.x
     pos.y += vel.y
 
+world.addSystem(updatePosition)
+
 echo "entity1 pos.x: ", entity1[Position].x
 echo "entity2 pos.y: ", entity2[Position].y
 echo "==================="
 
-updatePosition(world)
+world.runSystems()
 
 echo "entity1 pos.x: ", entity1[Position].x
 echo "entity2 pos.y: ", entity2[Position].y
