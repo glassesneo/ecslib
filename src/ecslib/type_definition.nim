@@ -1,6 +1,7 @@
 import
   std/hashes,
   std/macros,
+  std/sugar,
   std/tables,
   std/typetraits
 
@@ -19,19 +20,20 @@ type
   Resource*[T] = ref object of AbstructResource
     data: T
 
+  System* = (World) -> void
+
   World* = ref object
     nextId: EntityId
     freeIds: seq[EntityId]
     entities: seq[Entity]
     components: Table[string, AbstructComponent]
     resources: Table[string, AbstructResource]
+    startUpSystems: seq[System]
+    normalSystems: seq[System]
 
   Entity* = ref object
     id*: EntityId
     world*: World
-
-  EntityQuery* = ref object
-    entities*: seq[Entity]
 
 const InvalidEntityId*: EntityId = 0
 
@@ -131,6 +133,20 @@ proc deleteEntity(world: World, entity: Entity) =
   world.freeIds.add(entity.id)
   for c in world.components.values:
     c.deleteEntity(entity)
+
+proc addSystem*(world: World, system: System) =
+  world.normalSystems.add system
+
+proc addStartUpSystem*(world: World, system: System) =
+  world.startUpSystems.add system
+
+proc start*(world: World) =
+  for system in world.startUpSystems:
+    system(world)
+
+proc runSystems*(world: World) =
+  for system in world.normalSystems:
+    system(world)
 
 proc isValid*(entity: Entity): bool =
   entity.world.isInvalidEntity(entity)
