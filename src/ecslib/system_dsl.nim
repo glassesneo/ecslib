@@ -10,6 +10,13 @@ type
 
 macro system*(theProc: untyped): untyped =
   # proc f(query: [All(Position), Any(Attack, Magic), None()])
+  if theProc.params.len <= 1:
+    return newProc(
+      name = theProc[0],
+      params = [newEmptyNode(), newIdentDefs(ident"world", ident"World")],
+      body = theProc.body
+    )
+
   let queryTableIdentDef = theProc.params[1]
 
   var queryTable: Table[string, seq[string]] = initTable[string, seq[string]]()

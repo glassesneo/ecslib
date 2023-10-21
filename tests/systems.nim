@@ -38,7 +38,11 @@ proc updatePosition(query: [All(Velocity, Position)]) {.system.} =
     pos.x += vel.x
     pos.y += vel.y
 
+proc emptySystem() {.system.} =
+  discard
+
 world.addSystem(updatePosition)
+world.addSystem(emptySystem)
 
 echo "entity1 pos.x: ", entity1[Position].x
 echo "entity2 pos.y: ", entity2[Position].y
