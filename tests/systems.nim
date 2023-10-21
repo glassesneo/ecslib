@@ -3,7 +3,8 @@ discard """
 """
 
 import
-  ../src/ecslib
+  ../src/ecslib,
+  std/macros
 
 type
   Position = ref object
@@ -20,29 +21,29 @@ let
 
 entity1
   .attach(
-    Position(x: 0, y: 15)
+    Position(x: 0, y: 0)
   ).attach(
     Velocity(x: 5, y: 0)
   )
 
 entity2
   .attach(
-    Position(x: 5, y: 15)
+    Position(x: 0, y: 0)
   ).attach(
-    Velocity(x: 5, y: 0)
+    Velocity(x: 0, y: 5)
   )
 
-proc updatePosition(vel: Velocity[with(Position)], pos: Position) {.system.} =
-  for c1 in pos:
-    for c2 in vel:
-      c1.x += c2.x
+proc updatePosition(query: [All(Velocity, Position)]) {.system.} =
+  for pos, vel in each(Position, Velocity):
+    pos.x += vel.x
+    pos.y += vel.y
 
-echo entity1[Position].x
-echo entity2[Position].x
+echo "entity1 pos.x: ", entity1[Position].x
+echo "entity2 pos.y: ", entity2[Position].y
 echo "==================="
 
-world.runSystem(updatePosition)
+updatePosition(world)
 
-echo entity1[Position].x
-echo entity2[Position].x
+echo "entity1 pos.x: ", entity1[Position].x
+echo "entity2 pos.y: ", entity2[Position].y
 echo "==================="
