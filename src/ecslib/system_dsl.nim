@@ -1,74 +1,60 @@
 import
   std/macros,
-  std/sugar,
+  std/sequtils,
+  std/tables,
   ./type_definition
 
-type
-  ComponentCondition* = tuple
-    typeNameNode, conditionNode: NimNode
+macro system*(theProc: untyped): untyped =
+  # proc f(queryTable: [All(Position), Any(Attack, Magic), None()])
+  let queryTableIdentDef = theProc.params[1]
 
-proc parseCondition(node: NimNode): NimNode =
-  if node.kind == nnkCall and node.len == 2:
-    let arg = node[1]
-    case node[0].strVal
-    of "with":
-      result = quote do:
-        e.has(`arg`)
-    of "without":
-      result = quote do:
-        not e.has(`arg`)
-    else:
+  var queryTable: Table[string, seq[string]] = initTable[string, seq[string]]()
+  queryTable["All"] = @[]
+  queryTable["Any"] = @[]
+  queryTable["None"] = @[]
+
+  for node in queryTableIdentDef[1][0..^1]:
+    if node.kind != nnkCall:
       error "Unsupported syntax", node
-    return
 
-  if node.kind == nnkInfix:
+    if node[0].strVal notin queryTable.keys.toSeq:
+      error "Unsupported syntax", node[0]
+
+    for c in node[1..^1]:
+      queryTable[node[0].strVal].add c.strVal
+
+  let systemBody = theProc.body
+
+  block:
     let
-      (left, op, right) = node.unpackInfix
-      leftCondition = left.parseCondition()
-      rightCondition = right.parseCondition()
+      All = newLit(queryTable["All"])
+      Any = newLit(queryTable["Any"])
+      None = newLit(queryTable["None"])
+    systemBody.insert 0, quote do:
+      proc getEntityQuery(world: World): EntityQuery =
+        result = EntityQuery.new()
+        for e in world.entities:
+          if e.hasAll(`All`) and e.hasAny(`Any`) and e.hasNone(`None`):
+            result.entities.add e
 
-    case op
-    of "and":
-      result = quote do:
-        `leftCondition` and `rightCondition`
-
-    of "or":
-      result = quote do:
-        `leftCondition` or `rightCondition`
-    else:
-      error "Unsupported syntax", node
-    return
-
-  if node.kind == nnkPar:
-    return node[0].parseCondition()
-
-  error "Unsupported syntax", node
-
-proc parseTypeNode*(node: NimNode): ComponentCondition =
-  node.expectKind nnkBracketExpr
-
-  result.typeNameNode = node[0]
-
-  let condition = node[1].parseCondition()
-
-  result.conditionNode = quote do:
-    (e: Entity) => `condition`
-
-macro runSystem*(world, returner: typed): untyped =
-  let impl = returner.getImpl()
-  let returnerName = impl[0]
-  let systemName = ident "system"
-
-  result = nnkBlockStmt.newTree(
-    newEmptyNode(),
-    newStmtList()
+  result = newProc(
+    name = theProc[0],
+    params = [newEmptyNode(), newIdentDefs(ident"world", ident"World")],
+    body = systemBody
   )
 
-  result[1] = quote do:
-    let `systemName` = `returnerName`()
-    system.update()
+macro each*(systemLoop: ForLoopStmt): untyped =
+  result = nnkForStmt.newTree()
 
-  for identDef in impl[3][0][2][0][1..^1]:
-    let typeIdent = identDef[1][1]
-    result[1][1].add quote do:
-      `world`.componentOf(`typeIdent`).match(`systemName`)
+  let componentIdents = systemLoop[0..^3]
+  let componentNames = systemLoop[^2][1..^1]
+  let forBody = systemLoop[^1]
+
+  result.add ident"entity"
+  result.add ident"getEntityQuery".newCall(ident"world").newDotExpr(ident"entities")
+
+  for (ident, typeName) in zip(componentIdents, componentNames):
+    forBody.insert 0, quote do:
+      let `ident` = entity.get(`typeName`)
+
+  result.add forBody

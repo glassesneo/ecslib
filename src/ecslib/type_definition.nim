@@ -1,7 +1,6 @@
 import
   std/hashes,
   std/macros,
-  std/sugar,
   std/tables,
   std/typetraits
 
@@ -31,13 +30,8 @@ type
     id*: EntityId
     world*: World
 
-  AbstructSystem* = ref object of RootObj
-
-  System*[T: proc] = ref object of AbstructSystem
-    conditions*: Table[string, (Entity) -> bool]
-    update*: T
-
-  SystemReturner*[T: proc] = () -> System[T]
+  EntityQuery* = ref object
+    entities*: seq[Entity]
 
 const InvalidEntityId*: EntityId = 0
 
@@ -151,6 +145,27 @@ proc has*(entity: Entity, T: typedesc): bool =
 proc has*(entity: Entity, typeName: string): bool =
   return entity.world.has(typeName) and entity.world.components[typeName].has(entity)
 
+proc hasAll*(entity: Entity, typeNames: varargs[string]): bool =
+  if typeNames.len == 0:
+    return true
+  result = true
+  for t in typeNames:
+    if not (entity.world.has(t) and entity.world.components[t].has(entity)):
+      return false
+
+proc hasAny*(entity: Entity, typeNames: varargs[string]): bool =
+  if typeNames.len == 0:
+    return true
+  result = false
+  for t in typeNames:
+    if not (entity.world.has(t) and entity.world.components[t].has(entity)):
+      return true
+
+proc hasNone*(entity: Entity, typeNames: varargs[string]): bool =
+  if typeNames.len == 0:
+    return true
+  return not entity.hasAny(typeNames)
+
 proc get*(entity: Entity, T: typedesc): T =
   return entity.world.getComponent(T, entity)
 
@@ -166,13 +181,3 @@ proc detach*(entity: Entity, T: typedesc) =
 proc delete*(entity: Entity) =
   entity.world.deleteEntity(entity)
   entity.id = InvalidEntityId
-
-proc match*[T; U: proc](
-    component: Component[T],
-    system: System[U]
-): Component[T] =
-  result = Component[T].new()
-  for entity in component.indexTable.keys:
-    for typeName, condition in system.conditions.pairs:
-      if entity.has(typeName) and condition(entity):
-        result[entity] = component[entity]
