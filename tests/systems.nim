@@ -33,7 +33,7 @@ entity2
     Velocity(x: 0, y: 5)
   )
 
-proc updatePosition(query: [All(Velocity, Position)]) {.system.} =
+proc updatePosition(all = [Velocity, Position]) {.system.} =
   for pos, vel in each(Position, Velocity):
     pos.x += vel.x
     pos.y += vel.y

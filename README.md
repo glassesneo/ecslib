@@ -42,13 +42,13 @@ ball2
 
 # {.system.} pragma can generate a system
 # from a procedure with the query of required components!
-proc updatePosition(query: [All(Velocity, Position)]) {.system.} =
+proc updatePosition(all = [Velocity, Position]) {.system.} =
   for pos, vel in each(Position, Velocity):
     # Iterate any number of different types by using `each` macro
     pos.x += vel.x
     pos.y += vel.y
 
-proc showPosition(query: [All(Position)]) {.system.} =
+proc showPosition(all = [Position]) {.system.} =
   for pos in each(Position):
     echo "x: ", pos.x
     echo "y: ", pos.y

@@ -17,30 +17,31 @@ macro system*(theProc: untyped): untyped =
       body = theProc.body
     )
 
-  let queryTableIdentDef = theProc.params[1]
+  let queryIdentDefs = theProc.params[1..^1]
 
   var queryTable: Table[string, seq[string]] = initTable[string, seq[string]]()
-  queryTable["All"] = @[]
-  queryTable["Any"] = @[]
-  queryTable["None"] = @[]
+  queryTable["all"] = @[]
+  queryTable["any"] = @[]
+  queryTable["none"] = @[]
 
-  for node in queryTableIdentDef[1][0..^1]:
-    if node.kind != nnkCall:
+  for node in queryIdentDefs:
+    if node[2].kind != nnkBracket:
       error "Unsupported syntax", node
 
-    if node[0].strVal notin queryTable.keys.toSeq:
+    let key = node[0].strVal
+    if key notin queryTable.keys.toSeq:
       error "Unsupported syntax", node[0]
 
-    for c in node[1..^1]:
-      queryTable[node[0].strVal].add c.strVal
+    for c in node[2][1..^1]:
+      queryTable[key].add c.strVal
 
   let systemBody = theProc.body
 
   block:
     let
-      All = newLit(queryTable["All"])
-      Any = newLit(queryTable["Any"])
-      None = newLit(queryTable["None"])
+      All = newLit(queryTable["all"])
+      Any = newLit(queryTable["any"])
+      None = newLit(queryTable["none"])
     systemBody.insert 0, quote do:
       proc getEntityQuery(world: World): EntityQuery =
         result = EntityQuery.new()
