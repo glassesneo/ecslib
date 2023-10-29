@@ -4,16 +4,12 @@ import
   std/tables,
   ./type_definition
 
-type
-  EntityQuery* = ref object
-    entities*: seq[Entity]
-
 macro system*(theProc: untyped): untyped =
-  # proc f(query: [All(Position), Any(Attack, Magic), None()])
+  # proc f(all = [Position], any = [Attack, Magic], none = [])
   if theProc.params.len <= 1:
     return newProc(
       name = theProc[0],
-      params = [newEmptyNode(), newIdentDefs(ident"world", ident"World")],
+      params = [newEmptyNode(), newIdentDefs(ident"command", ident"Command")],
       body = theProc.body
     )
 
@@ -43,15 +39,14 @@ macro system*(theProc: untyped): untyped =
       Any = newLit(queryTable["any"])
       None = newLit(queryTable["none"])
     systemBody.insert 0, quote do:
-      proc getEntityQuery(world: World): EntityQuery =
-        result = EntityQuery.new()
-        for e in world.entities:
+      proc getQueriedEntities(command: Command): seq[Entity] =
+        for e in command.entities:
           if e.hasAll(`All`) and e.hasAny(`Any`) and e.hasNone(`None`):
-            result.entities.add e
+            result.add e
 
   result = newProc(
     name = theProc[0],
-    params = [newEmptyNode(), newIdentDefs(ident"world", ident"World")],
+    params = [newEmptyNode(), newIdentDefs(ident"command", ident"Command")],
     body = systemBody
   )
 
@@ -63,7 +58,7 @@ macro each*(systemLoop: ForLoopStmt): untyped =
   let forBody = systemLoop[^1]
 
   result.add ident"entity"
-  result.add ident"getEntityQuery".newCall(ident"world").newDotExpr(ident"entities")
+  result.add ident"getQueriedEntities".newCall(ident"command")
 
   for (ident, typeName) in zip(componentIdents, componentNames):
     forBody.insert 0, quote do:
