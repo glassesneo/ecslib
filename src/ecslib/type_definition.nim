@@ -155,6 +155,11 @@ proc attach*[T](entity: Entity, data: T): Entity {.discardable.} =
   entity.world.attachComponent(data, entity)
   return entity
 
+proc withBundle*(entity: Entity, bundle: tuple): Entity =
+  for c in bundle.fields:
+    entity.attach(c)
+  return entity
+
 proc has*(entity: Entity, T: typedesc): bool =
   return entity.world.has(T) and entity.world.componentOf(T).has(entity)
 
