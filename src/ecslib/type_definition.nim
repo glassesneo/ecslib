@@ -20,7 +20,7 @@ type
   Resource*[T] = ref object of AbstructResource
     data: T
 
-  System* = (World) -> void
+  System* = (Command) -> void
 
   World* = ref object
     nextId: EntityId
@@ -28,8 +28,12 @@ type
     entities: seq[Entity]
     components: Table[string, AbstructComponent]
     resources: Table[string, AbstructResource]
+    command: Command
     startUpSystems: seq[System]
     normalSystems: seq[System]
+
+  Command* = ref object
+    world: World
 
   Entity* = ref object
     id*: EntityId
@@ -88,7 +92,8 @@ iterator pairs*[T](component: Component[T]): tuple[key: Entity, val: T] =
     yield (e, component.storage[i])
 
 proc new*(_: type World): World =
-  World(nextId: 1)
+  result = World(nextId: 1)
+  result.command = Command(world: result)
 
 proc entities*(world: World): seq[Entity] =
   world.entities
@@ -140,13 +145,13 @@ proc addSystem*(world: World, system: System) =
 proc addStartUpSystem*(world: World, system: System) =
   world.startUpSystems.add system
 
-proc start*(world: World) =
+proc runStartUpSystem*(world: World) =
   for system in world.startUpSystems:
-    system(world)
+    system(world.command)
 
 proc runSystems*(world: World) =
   for system in world.normalSystems:
-    system(world)
+    system(world.command)
 
 proc isValid*(entity: Entity): bool =
   entity.world.isInvalidEntity(entity)
@@ -202,3 +207,18 @@ proc detach*(entity: Entity, T: typedesc) =
 proc delete*(entity: Entity) =
   entity.world.deleteEntity(entity)
   entity.id = InvalidEntityId
+
+proc create*(command: Command): Entity {.discardable.} =
+  return command.world.create()
+
+proc entities*(command: Command): seq[Entity] =
+  command.world.entities
+
+proc addResource*[T](command: Command, data: T) =
+  command.world.addResource[T](data)
+
+proc getResource*(command: Command, T: typedesc): T =
+  command.world.getResource(T)
+
+proc deleteResource*(command: Command, T: typedesc) =
+  command.world.deleteResource(T)
