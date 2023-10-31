@@ -1,9 +1,13 @@
 import
   std/hashes,
   std/macros,
+  std/sequtils,
+  std/strformat,
   std/sugar,
   std/tables,
-  std/typetraits
+  std/typetraits,
+  pkg/oolib,
+  ./exceptions
 
 type
   EntityId* = uint
@@ -36,8 +40,14 @@ type
     world: World
 
   Entity* = ref object
-    id*: EntityId
+    id: EntityId
     world*: World
+
+  Parent* {.construct.} = ref object
+    children*: seq[Entity]
+
+  Child* {.construct.} = ref object
+    parent*: Entity
 
 const InvalidEntityId*: EntityId = 0
 
@@ -153,6 +163,9 @@ proc runSystems*(world: World) =
   for system in world.normalSystems:
     system(world.command)
 
+proc id*(entity: Entity): EntityId =
+  return entity.id
+
 proc isValid*(entity: Entity): bool =
   entity.world.isInvalidEntity(entity)
 
@@ -160,7 +173,7 @@ proc attach*[T](entity: Entity, data: T): Entity {.discardable.} =
   entity.world.attachComponent(data, entity)
   return entity
 
-proc withBundle*(entity: Entity, bundle: tuple): Entity =
+proc withBundle*(entity: Entity, bundle: tuple): Entity {.discardable.} =
   for c in bundle.fields:
     entity.attach(c)
   return entity
@@ -207,6 +220,43 @@ proc detach*(entity: Entity, T: typedesc) =
 proc delete*(entity: Entity) =
   entity.world.deleteEntity(entity)
   entity.id = InvalidEntityId
+
+proc withParent*(entity, parent: Entity): Entity {.discardable.} =
+  if entity.has(Child):
+    raise (ref ParentDuplicationError)(
+      msg: fmt"entity(id: {entity.id}) already has the parent entity(id: {parent.id})"
+    )
+
+  if parent.has(Parent):
+    parent.get(Parent).children.add entity
+  else:
+    parent.attach(Parent.new(@[entity]))
+
+  return entity.attach(Child.new(parent))
+
+proc withChildren*(
+    entity: Entity,
+    children: varargs[Entity]
+): Entity {.discardable.} =
+  let assignedChildren = children.mapIt(it.withParent(entity))
+
+  entity.get(Parent).children.add assignedChildren
+  return entity
+
+proc clearChildren*(entity: Entity) =
+  for child in entity.get(Parent).children:
+    child.detach(Child)
+  entity.detach(Parent)
+
+proc removeChildren*(entity: Entity, children: varargs[Entity]) =
+  let parent = entity.get(Parent)
+  for child in children:
+    let index = parent.children.find(child)
+    parent.children.del(index)
+
+proc removeParent*(entity: Entity) =
+  let parentEntity = entity.get(Child).parent
+  parentEntity.clearChildren()
 
 proc create*(command: Command): Entity {.discardable.} =
   return command.world.create()

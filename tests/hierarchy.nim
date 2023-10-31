@@ -67,3 +67,7 @@ echo "==============="
 echo fmt"parent position: (x: {parentTransform.absolute.x}, y: {parentTransform.absolute.y})"
 echo fmt"child1 position: (x: {childTf1.absolute.x}, y: {childTf1.absolute.y})"
 echo fmt"child2 position: (x: {childTf2.absolute.x}, y: {childTf2.absolute.y})"
+
+parentEntity.removeChildren(childEntity1)
+
+childEntity2.removeParent()
