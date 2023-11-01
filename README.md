@@ -11,10 +11,10 @@ import
 
 # Components ---- no need to register!
 type
-  Position = ref object
+  Position = object
     x, y: int
 
-  Velocity = ref object
+  Velocity = object
     x, y: int
 
 # World
@@ -42,8 +42,8 @@ ball2
 
 # {.system.} pragma can generate a system
 # from a procedure with the query of required components!
-proc updatePosition(all = [Velocity, Position]) {.system.} =
-  for pos, vel in each(Position, Velocity):
+proc updatePosition(all = [var Position, Velocity]) {.system.} =
+  for pos, vel in each(var Position, Velocity):
     # Iterate any number of different types by using `each` macro
     pos.x += vel.x
     pos.y += vel.y
