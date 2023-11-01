@@ -7,10 +7,10 @@ import
   ../src/ecslib
 
 type
-  Position = ref object
+  Position = object
     x, y: int
 
-  Velocity = ref object
+  Velocity = object
     x, y: int
 
 let world = World.new()

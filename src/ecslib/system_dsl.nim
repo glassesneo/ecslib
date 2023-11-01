@@ -28,8 +28,11 @@ macro system*(theProc: untyped): untyped =
     if key notin queryTable.keys.toSeq:
       error "Unsupported syntax", node[0]
 
-    for c in node[2][1..^1]:
-      queryTable[key].add c.strVal
+    for c in node[2][0..^1]:
+      let name = block:
+        if c.kind == nnkVarTy: c[0].strVal
+        else: c.strVal
+      queryTable[key].add name
 
   let systemBody = theProc.body
 
@@ -60,8 +63,15 @@ macro each*(systemLoop: ForLoopStmt): untyped =
   result.add ident"entity"
   result.add ident"getQueriedEntities".newCall(ident"command")
 
-  for (ident, typeName) in zip(componentIdents, componentNames):
-    forBody.insert 0, quote do:
-      let `ident` = entity.get(`typeName`)
+  for (ident, ty) in zip(componentIdents, componentNames):
+    if ty.kind == nnkVarTy:
+      let typeName = ty[0]
+      forBody.insert 0, quote do:
+        var `ident` = entity.get(`typeName`)
+
+    else:
+      let typeName = ty
+      forBody.insert 0, quote do:
+        let `ident` = entity.get(`typeName`)
 
   result.add forBody

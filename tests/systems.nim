@@ -7,10 +7,10 @@ import
   std/macros
 
 type
-  Position = ref object
+  Position = object
     x, y: int
 
-  Velocity = ref object
+  Velocity = object
     x, y: int
 
 let world = World.new()
@@ -33,10 +33,11 @@ entity2
     Velocity(x: 0, y: 5)
   )
 
-proc updatePosition(all = [Velocity, Position]) {.system.} =
-  for pos, vel in each(Position, Velocity):
+proc updatePosition(all = [var Position, Velocity]) {.system.} =
+  for pos, vel in each(var Position, Velocity):
     pos.x += vel.x
     pos.y += vel.y
+
 
 proc emptySystem() {.system.} =
   discard
