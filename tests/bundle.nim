@@ -6,16 +6,16 @@ import
   ../src/ecslib
 
 type
-  Position = ref object
+  Position = object
     x, y: int
 
-  Velocity = ref object
+  Velocity = object
     x, y: int
 
-  HP = ref object
+  HP = object
     max, current: int
 
-  MP = ref object
+  MP = object
     max, current: int
 
   PlayerStatus = tuple

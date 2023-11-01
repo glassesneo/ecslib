@@ -7,16 +7,16 @@ import
   ../src/ecslib
 
 type
-  Position = ref object
+  Position = object
     x, y: int
 
-  Transform = ref object
+  Transform = object
     absolute, local: Position
 
 proc new(_: type Transform, absolute: Position): Transform =
   result = Transform(absolute: absolute)
 
-proc setLocalPosition(tf: Transform, parentPosition: Position) =
+proc setLocalPosition(tf: var Transform, parentPosition: Position) =
   tf.local = Position(
     x: tf.absolute.x - parentPosition.x,
     y: tf.absolute.y - parentPosition.y
@@ -26,25 +26,25 @@ let world = World.new()
 
 let parentEntity = world.create().attach(Transform.new(Position(x: 0, y: 0)))
 
-let childTf1 = Transform.new(Position(x: 5, y: 5))
+var childTf1 = Transform.new(Position(x: 5, y: 5))
 childTf1.setLocalPosition(parentEntity.get(Transform).absolute)
 
 let childEntity1 = world.create().attach(childTf1)
 
 parentEntity.withChildren(childEntity1)
 
-let childTf2 = Transform.new(Position(x: 3, y: 3))
+var childTf2 = Transform.new(Position(x: 3, y: 3))
 childTf2.setLocalPosition(parentEntity.get(Transform).absolute)
 
 let childEntity2 {.used.} = world.create().withParent(parentEntity).attach(childTf2)
 
-proc move(all = [Transform, Parent]) {.system.} =
-  for tf in each(Transform):
+proc move(all = [var Transform, Parent]) {.system.} =
+  for tf in each(var Transform):
     tf.absolute.x += 5
     tf.absolute.y += 5
 
-proc calculateLocalPosition(all = [Transform, Child]) {.system.} =
-  for tf, child in each(Transform, Child):
+proc calculateLocalPosition(all = [var Transform, Child]) {.system.} =
+  for tf, child in each(var Transform, Child):
     let parentEntity = child.parent
     let parentTf = parentEntity.get(Transform)
     tf.absolute.x = tf.local.x + parentTf.absolute.x
