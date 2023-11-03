@@ -3,11 +3,11 @@ discard """
 """
 
 import
-  std/strformat,
+  std/unittest,
   ../src/ecslib
 
 type
-  Position = object
+  Position = ref object
     x, y: int
 
   Transform = object
@@ -31,12 +31,12 @@ childTf1.setLocalPosition(parentEntity.get(Transform).absolute)
 
 let childEntity1 = world.create().attach(childTf1)
 
-parentEntity.withChildren(childEntity1)
+parentEntity.addChildren(childEntity1)
 
 var childTf2 = Transform.new(Position(x: 3, y: 3))
 childTf2.setLocalPosition(parentEntity.get(Transform).absolute)
 
-let childEntity2 {.used.} = world.create().withParent(parentEntity).attach(childTf2)
+let childEntity2 {.used.} = world.create().registerParent(parentEntity).attach(childTf2)
 
 proc move(all = [var Transform, Parent]) {.system.} =
   for tf in each(var Transform):
@@ -55,18 +55,18 @@ world.addSystem(calculateLocalPosition)
 
 let parentTransform = parentEntity.get(Transform)
 
-echo "==============="
-echo fmt"parent position: (x: {parentTransform.absolute.x}, y: {parentTransform.absolute.y})"
-echo fmt"child1 position: (x: {childTf1.absolute.x}, y: {childTf1.absolute.y})"
-echo fmt"child2 position: (x: {childTf2.absolute.x}, y: {childTf2.absolute.y})"
 
 for i in 0..<10:
   world.runSystems()
 
-echo "==============="
-echo fmt"parent position: (x: {parentTransform.absolute.x}, y: {parentTransform.absolute.y})"
-echo fmt"child1 position: (x: {childTf1.absolute.x}, y: {childTf1.absolute.y})"
-echo fmt"child2 position: (x: {childTf2.absolute.x}, y: {childTf2.absolute.y})"
+check parentTransform.absolute.x == 50
+check parentTransform.absolute.y == 50
+
+check childTf1.absolute.x == 55
+check childTf1.absolute.y == 55
+
+check childTf2.absolute.x == 53
+check childTf2.absolute.y == 53
 
 parentEntity.removeChildren(childEntity1)
 
