@@ -4,7 +4,8 @@ discard """
 
 import
   ../src/ecslib,
-  std/macros
+  std/macros,
+  std/unittest
 
 type
   Position = object
@@ -45,12 +46,11 @@ proc emptySystem() {.system.} =
 world.addSystem(updatePosition)
 world.addSystem(emptySystem)
 
-echo "entity1 pos.x: ", entity1[Position].x
-echo "entity2 pos.y: ", entity2[Position].y
-echo "==================="
+check entity1[Position].x == 0
+check entity2[Position].y == 0
 
-world.runSystems()
+for i in 0..<10:
+  world.runSystems()
 
-echo "entity1 pos.x: ", entity1[Position].x
-echo "entity2 pos.y: ", entity2[Position].y
-echo "==================="
+check entity1[Position].x == 50
+check entity2[Position].y == 50

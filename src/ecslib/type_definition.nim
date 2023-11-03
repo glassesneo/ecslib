@@ -1,12 +1,11 @@
 import
   std/hashes,
   std/macros,
-  std/sequtils,
+  std/sets,
   std/strformat,
   std/sugar,
   std/tables,
   std/typetraits,
-  pkg/oolib,
   ./exceptions
 
 type
@@ -43,10 +42,10 @@ type
     id: EntityId
     world*: World
 
-  Parent* {.construct.} = ref object
-    children*: seq[Entity]
+  Parent* = object
+    children*: HashSet[Entity]
 
-  Child* {.construct.} = ref object
+  Child* = object
     parent*: Entity
 
 const InvalidEntityId*: EntityId = 0
@@ -166,6 +165,9 @@ proc runSystems*(world: World) =
 proc id*(entity: Entity): EntityId =
   return entity.id
 
+proc `$`*(entity: Entity): string =
+  return fmt"Entity(id: {entity.id})"
+
 proc isValid*(entity: Entity): bool =
   entity.world.isInvalidEntity(entity)
 
@@ -185,11 +187,9 @@ proc has*(entity: Entity, typeName: string): bool =
   return entity.world.has(typeName) and entity.world.components[typeName].has(entity)
 
 proc hasAll*(entity: Entity, typeNames: varargs[string]): bool =
-  if typeNames.len == 0:
-    return true
   result = true
   for t in typeNames:
-    if not (entity.world.has(t) and entity.world.components[t].has(entity)):
+    if not entity.has(t):
       return false
 
 proc hasAny*(entity: Entity, typeNames: varargs[string]): bool =
@@ -197,7 +197,7 @@ proc hasAny*(entity: Entity, typeNames: varargs[string]): bool =
     return true
   result = false
   for t in typeNames:
-    if not (entity.world.has(t) and entity.world.components[t].has(entity)):
+    if not entity.has(t):
       return true
 
 proc hasNone*(entity: Entity, typeNames: varargs[string]): bool =
@@ -221,26 +221,33 @@ proc delete*(entity: Entity) =
   entity.world.deleteEntity(entity)
   entity.id = InvalidEntityId
 
-proc withParent*(entity, parent: Entity): Entity {.discardable.} =
+template withComponent*(entity: Entity, T: typedesc; body) =
+  var component {.inject.} = entity.get(T)
+  body
+  entity[T] = component
+
+proc registerParent*(entity, parent: Entity): Entity {.discardable.} =
   if entity.has(Child):
     raise (ref ParentDuplicationError)(
       msg: fmt"entity(id: {entity.id}) already has the parent entity(id: {parent.id})"
     )
 
   if parent.has(Parent):
-    parent.get(Parent).children.add entity
+    parent.withComponent(Parent):
+      component.children.incl entity
+
   else:
-    parent.attach(Parent.new(@[entity]))
+    parent.attach(Parent(children: [entity].toHashSet()))
 
-  return entity.attach(Child.new(parent))
+  return entity.attach(Child(parent: parent))
 
-proc withChildren*(
+proc addChildren*(
     entity: Entity,
     children: varargs[Entity]
 ): Entity {.discardable.} =
-  let assignedChildren = children.mapIt(it.withParent(entity))
+  for child in children:
+    child.registerParent(entity)
 
-  entity.get(Parent).children.add assignedChildren
   return entity
 
 proc clearChildren*(entity: Entity) =
@@ -249,10 +256,9 @@ proc clearChildren*(entity: Entity) =
   entity.detach(Parent)
 
 proc removeChildren*(entity: Entity, children: varargs[Entity]) =
-  let parent = entity.get(Parent)
-  for child in children:
-    let index = parent.children.find(child)
-    parent.children.del(index)
+  entity.withComponent(Parent):
+    for child in children:
+      component.children.excl child
 
 proc removeParent*(entity: Entity) =
   let parentEntity = entity.get(Child).parent
