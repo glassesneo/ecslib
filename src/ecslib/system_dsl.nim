@@ -69,6 +69,9 @@ macro each*(systemLoop: ForLoopStmt): untyped =
       forBody.insert 0, quote do:
         var `ident` = entity.get(`typeName`)
 
+      forBody.add quote do:
+        entity.attach(`ident`)
+
     else:
       let typeName = ty
       forBody.insert 0, quote do:

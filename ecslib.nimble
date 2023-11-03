@@ -10,4 +10,6 @@ srcDir        = "src"
 # Dependencies
 
 requires "nim >= 2.0.0"
-requires "oolib >= 0.7.1"
+
+task tests, "Run all tests":
+  exec "testament p 'tests/*nim'"
