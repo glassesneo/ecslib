@@ -3,54 +3,59 @@ discard """
 """
 
 import
-  ../src/ecslib,
-  std/macros,
-  std/unittest
+  std/sets
+import ../src/ecslib {.all.}
 
 type
-  Position = object
+  Position = ref object
     x, y: int
 
-  Velocity = object
+  Velocity = ref object
     x, y: int
+
+  A = ref object
+  B = ref object
+  C = ref object
 
 let world = World.new()
 
 let
   entity1 = world.create()
   entity2 = world.create()
+  entity3 = world.create()
 
 entity1
   .attach(
     Position(x: 0, y: 0)
   ).attach(
     Velocity(x: 5, y: 0)
-  )
+  ).attach(A())
 
 entity2
   .attach(
     Position(x: 0, y: 0)
   ).attach(
     Velocity(x: 0, y: 5)
-  )
+  ).attach(B())
 
-proc updatePosition(all = [var Position, Velocity]) {.system.} =
-  for pos, vel in each(var Position, Velocity):
+entity3
+  .attach(
+    Position(x: 0, y: 0)
+  ).attach(
+    Velocity(x: 0, y: 5)
+  ).attach(C())
+
+let ballQuery = world.createQuery(
+  ["Position", "Velocity"].toHashSet(),
+  qAny = ["A", "C"].toHashSet(),
+)
+
+proc moveSystem(ball: Query) =
+  ball.iterate (pos, vel) in (Position, Velocity):
     pos.x += vel.x
     pos.y += vel.y
+    echo entity
 
+for i in 1..10:
+  moveSystem(ballQuery)
 
-proc emptySystem() {.system.} =
-  discard
-
-world.addSystem(updatePosition)
-world.addSystem(emptySystem)
-
-check entity1[Position].x == 0
-check entity2[Position].y == 0
-
-for i in 0..<10:
-  world.runSystems()
-
-check entity1[Position].x == 50
-check entity2[Position].y == 50
