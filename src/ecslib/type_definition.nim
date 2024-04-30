@@ -31,7 +31,7 @@ type
     entities: seq[Entity]
     components: Table[string, AbstractComponent]
     resources: Table[string, AbstractResource]
-    systems, startupSystems: seq[System]
+    systems, startupSystems: HashSet[System]
 
   Command* = ref object
     world: World
@@ -241,11 +241,13 @@ proc queriedEntities*(query: Query): seq[Entity] =
   return query.world.entities.filter(query.process)
 
 proc registerSystem*(world: World, systemProc: System) =
-  world.systems.add systemProc
+  world.systems.incl systemProc
 
 proc registerStartupSystem*(world: World, systemProc: System) =
-  world.startupSystems.add systemProc
+  world.startupSystems.incl systemProc
 
 proc runSystems*(world: World) =
-  world.startupSystems.apply((s: System) => s(world))
-  world.systems.apply((s: System) => s(world))
+  for s in world.startupSystems:
+    s(world)
+  for s in world.startupSystems:
+    s(world)
