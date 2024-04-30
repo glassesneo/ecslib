@@ -6,8 +6,7 @@ import
   std/strformat,
   std/sugar,
   std/tables,
-  std/typetraits,
-  ./exceptions
+  std/typetraits
 
 type
   EntityId* = uint
@@ -45,12 +44,6 @@ type
     componentSet: seq[string]
     process: (Entity) -> bool
     world: World
-
-  Parent* = object
-    children*: HashSet[Entity]
-
-  Child* = object
-    parent*: Entity
 
 const InvalidEntityId*: EntityId = 0
 
@@ -209,49 +202,6 @@ proc detach*(entity: Entity, T: typedesc) =
 proc delete*(entity: Entity) =
   entity.world.deleteEntity(entity)
   entity.id = InvalidEntityId
-
-template withComponent*(entity: Entity, T: typedesc; body: untyped) =
-  var component {.inject.} = entity.get(T)
-  body
-  entity[T] = component
-
-proc registerParent*(entity, parent: Entity): Entity {.discardable.} =
-  if entity.has(Child):
-    raise (ref ParentDuplicationError)(
-      msg: fmt"entity(id: {entity.id}) already has the parent entity(id: {parent.id})"
-    )
-
-  if parent.has(Parent):
-    parent.withComponent(Parent):
-      component.children.incl entity
-
-  else:
-    parent.attach(Parent(children: [entity].toHashSet()))
-
-  return entity.attach(Child(parent: parent))
-
-proc addChildren*(
-    entity: Entity,
-    children: varargs[Entity]
-): Entity {.discardable.} =
-  for child in children:
-    child.registerParent(entity)
-
-  return entity
-
-proc clearChildren*(entity: Entity) =
-  for child in entity.get(Parent).children:
-    child.detach(Child)
-  entity.detach(Parent)
-
-proc removeChildren*(entity: Entity, children: varargs[Entity]) =
-  entity.withComponent(Parent):
-    for child in children:
-      component.children.excl child
-
-proc removeParent*(entity: Entity) =
-  let parentEntity = entity.get(Child).parent
-  parentEntity.clearChildren()
 
 proc new*(_: type Command, world: World): Command =
   return Command(world: world)
