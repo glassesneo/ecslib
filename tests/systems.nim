@@ -44,20 +44,24 @@ entity3
     Velocity(x: 0, y: 5)
   ).attach(C())
 
-
+defineQuery(world):
+  ballQuery:
+    All = @[Position, Velocity]
+    Any = @[A, C]
 
 proc moveSystem(world: World) {.system.} =
-  defineQuery(world):
-    ballQuery:
-      All = @[Position, Velocity]
-      Any = @[A, C]
   ballQuery.iterate (pos, vel) in (Position, Velocity):
     pos.x += vel.x
     pos.y += vel.y
+
+proc showPositionSystem(world: World) {.system.} =
+  using ball = ballQuery
+  ball.iterate (pos) in (Position):
     echo "x: " & $pos.x
     echo "y: " & $pos.y
 
 world.registerSystem(moveSystem)
+world.registerSystem(showPositionSystem)
 
 for i in 1..10:
   world.runSystems()
