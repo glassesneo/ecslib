@@ -39,7 +39,7 @@ type
     world*: World
 
   Query* = ref object
-    componentSet: HashSet[string]
+    componentSet: seq[string]
     process: (Entity) -> bool
     world: World
 
@@ -172,13 +172,13 @@ proc has*(entity: Entity, T: typedesc): bool =
 proc has*(entity: Entity, typeName: string): bool =
   return entity.world.has(typeName) and entity.world.components[typeName].has(entity)
 
-proc hasAll*(entity: Entity, typeNames: HashSet[string]): bool =
+proc hasAll*(entity: Entity, typeNames: seq[string]): bool =
   result = true
   for t in typeNames:
     if not entity.has(t):
       return false
 
-proc hasAny*(entity: Entity, typeNames: HashSet[string]): bool =
+proc hasAny*(entity: Entity, typeNames: seq[string]): bool =
   if typeNames.len == 0:
     return true
   result = false
@@ -186,7 +186,7 @@ proc hasAny*(entity: Entity, typeNames: HashSet[string]): bool =
     if entity.has(t):
       return true
 
-proc hasNone*(entity: Entity, typeNames: HashSet[string]): bool =
+proc hasNone*(entity: Entity, typeNames: seq[string]): bool =
   if typeNames.len == 0:
     return true
   return not entity.hasAny(typeNames)
@@ -273,9 +273,9 @@ proc deleteResource*(command: Command, T: typedesc) =
 
 proc createQuery*(
     world: World,
-    qAll: HashSet[string],
-    qAny: HashSet[string] = [].toHashSet[:string](),
-    qNone: HashSet[string] = [].toHashSet[:string]()
+    qAll: seq[string],
+    qAny: seq[string] = @[],
+    qNone: seq[string] = @[]
 ): Query =
   return Query(
     componentSet: qAll,

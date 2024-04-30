@@ -3,8 +3,7 @@ discard """
 """
 
 import
-  std/sets
-import ../src/ecslib {.all.}
+  ../src/ecslib {.all.}
 
 type
   Position = ref object
@@ -45,17 +44,19 @@ entity3
     Velocity(x: 0, y: 5)
   ).attach(C())
 
-let ballQuery = world.createQuery(
-  ["Position", "Velocity"].toHashSet(),
-  qAny = ["A", "C"].toHashSet(),
-)
 
-proc moveSystem(ball: Query) =
-  ball.iterate (pos, vel) in (Position, Velocity):
+
+proc moveSystem(world: World) {.system.} =
+  defineQuery(world):
+    ballQuery:
+      All = @[Position, Velocity]
+      Any = @[A, C]
+  ballQuery.iterate (pos, vel) in (Position, Velocity):
     pos.x += vel.x
     pos.y += vel.y
-    echo entity
+    echo "x: " & $pos.x
+    echo "y: " & $pos.y
 
 for i in 1..10:
-  moveSystem(ballQuery)
+  moveSystem(world)
 
