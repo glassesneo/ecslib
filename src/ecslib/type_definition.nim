@@ -24,12 +24,15 @@ type
   Resource*[T] = ref object of AbstractResource
     data: T
 
+  System* = (World) -> void
+
   World* = ref object
     nextId: EntityId
     freeIds: seq[EntityId]
     entities: seq[Entity]
     components: Table[string, AbstractComponent]
     resources: Table[string, AbstractResource]
+    systems, startupSystems: seq[System]
 
   Command* = ref object
     world: World
@@ -287,3 +290,12 @@ proc createQuery*(
 proc queriedEntities*(query: Query): seq[Entity] =
   return query.world.entities.filter(query.process)
 
+proc registerSystem*(world: World, systemProc: System) =
+  world.systems.add systemProc
+
+proc registerStartupSystem*(world: World, systemProc: System) =
+  world.startupSystems.add systemProc
+
+proc runSystems*(world: World) =
+  world.startupSystems.apply((s: System) => s(world))
+  world.systems.apply((s: System) => s(world))

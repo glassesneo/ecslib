@@ -57,6 +57,8 @@ proc moveSystem(world: World) {.system.} =
     echo "x: " & $pos.x
     echo "y: " & $pos.y
 
+world.registerSystem(moveSystem)
+
 for i in 1..10:
-  moveSystem(world)
+  world.runSystems()
 
