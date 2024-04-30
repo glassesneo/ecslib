@@ -7,10 +7,10 @@ import
   ../src/ecslib
 
 type
-  Position = object
+  Position = ref object
     x, y: int
 
-  Velocity = object
+  Velocity = ref object
     x, y: int
 
 let world = World.new()
@@ -25,7 +25,7 @@ entity
     Velocity(x: 5, y: 0)
   )
 
-check entity.hasAll("Position", "Velocity")
+check entity.hasAll(@["Position", "Velocity"])
 
 entity.detach(Velocity)
 
@@ -33,4 +33,4 @@ check entity.has("Position")
 
 check not entity.has(Velocity)
 
-check entity.hasAny("Position", "Velocity")
+check entity.hasAny(@["Position", "Velocity"])
