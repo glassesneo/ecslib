@@ -2,38 +2,36 @@ import
   std/hashes,
   std/macros,
   std/sets,
+  std/sequtils,
   std/strformat,
   std/sugar,
   std/tables,
-  std/typetraits,
-  ./exceptions
+  std/typetraits
 
 type
   EntityId* = uint
 
-  AbstructComponent* = ref object of RootObj
+  AbstractComponent* = ref object of RootObj
     indexTable: Table[Entity, int]
     freeIndex: seq[int]
 
-  Component*[T] = ref object of AbstructComponent
+  Component*[T] = ref object of AbstractComponent
     storage: seq[T]
 
-  AbstructResource* = ref object of RootObj
+  AbstractResource* = ref object of RootObj
 
-  Resource*[T] = ref object of AbstructResource
+  Resource*[T] = ref object of AbstractResource
     data: T
 
-  System* = (Command) -> void
+  System* = (World) -> void
 
   World* = ref object
     nextId: EntityId
     freeIds: seq[EntityId]
     entities: seq[Entity]
-    components: Table[string, AbstructComponent]
-    resources: Table[string, AbstructResource]
-    command: Command
-    startUpSystems: seq[System]
-    normalSystems: seq[System]
+    components: Table[string, AbstractComponent]
+    resources: Table[string, AbstractResource]
+    systems, startupSystems: HashSet[System]
 
   Command* = ref object
     world: World
@@ -42,11 +40,10 @@ type
     id: EntityId
     world*: World
 
-  Parent* = object
-    children*: HashSet[Entity]
-
-  Child* = object
-    parent*: Entity
+  Query* = ref object
+    componentSet: seq[string]
+    process: (Entity) -> bool
+    world: World
 
 const InvalidEntityId*: EntityId = 0
 
@@ -86,10 +83,10 @@ proc `[]=`[T](component: Component[T], entity: Entity, value: T) =
 proc attachToEntity[T](component: Component[T], data: T, entity: Entity) =
   component[entity] = data
 
-proc has*(component: AbstructComponent, entity: Entity): bool =
+proc has(component: AbstractComponent, entity: Entity): bool =
   return component.indexTable.hasKey(entity)
 
-proc deleteEntity(component: AbstructComponent, entity: Entity) =
+proc deleteEntity(component: AbstractComponent, entity: Entity) =
   component.indexTable.del(entity)
 
 iterator items*[T](component: Component[T]): T =
@@ -101,8 +98,7 @@ iterator pairs*[T](component: Component[T]): tuple[key: Entity, val: T] =
     yield (e, component.storage[i])
 
 proc new*(_: type World): World =
-  result = World(nextId: 1)
-  result.command = Command(world: result)
+  return World(nextId: 1)
 
 proc entities*(world: World): seq[Entity] =
   world.entities
@@ -148,20 +144,6 @@ proc deleteEntity(world: World, entity: Entity) =
   for c in world.components.values:
     c.deleteEntity(entity)
 
-proc addSystem*(world: World, system: System) =
-  world.normalSystems.add system
-
-proc addStartUpSystem*(world: World, system: System) =
-  world.startUpSystems.add system
-
-proc runStartUpSystem*(world: World) =
-  for system in world.startUpSystems:
-    system(world.command)
-
-proc runSystems*(world: World) =
-  for system in world.normalSystems:
-    system(world.command)
-
 proc id*(entity: Entity): EntityId =
   return entity.id
 
@@ -186,21 +168,21 @@ proc has*(entity: Entity, T: typedesc): bool =
 proc has*(entity: Entity, typeName: string): bool =
   return entity.world.has(typeName) and entity.world.components[typeName].has(entity)
 
-proc hasAll*(entity: Entity, typeNames: varargs[string]): bool =
+proc hasAll*(entity: Entity, typeNames: seq[string]): bool =
   result = true
   for t in typeNames:
     if not entity.has(t):
       return false
 
-proc hasAny*(entity: Entity, typeNames: varargs[string]): bool =
+proc hasAny*(entity: Entity, typeNames: seq[string]): bool =
   if typeNames.len == 0:
     return true
   result = false
   for t in typeNames:
-    if not entity.has(t):
+    if entity.has(t):
       return true
 
-proc hasNone*(entity: Entity, typeNames: varargs[string]): bool =
+proc hasNone*(entity: Entity, typeNames: seq[string]): bool =
   if typeNames.len == 0:
     return true
   return not entity.hasAny(typeNames)
@@ -221,54 +203,17 @@ proc delete*(entity: Entity) =
   entity.world.deleteEntity(entity)
   entity.id = InvalidEntityId
 
-template withComponent*(entity: Entity, T: typedesc; body) =
-  var component {.inject.} = entity.get(T)
-  body
-  entity[T] = component
-
-proc registerParent*(entity, parent: Entity): Entity {.discardable.} =
-  if entity.has(Child):
-    raise (ref ParentDuplicationError)(
-      msg: fmt"entity(id: {entity.id}) already has the parent entity(id: {parent.id})"
-    )
-
-  if parent.has(Parent):
-    parent.withComponent(Parent):
-      component.children.incl entity
-
-  else:
-    parent.attach(Parent(children: [entity].toHashSet()))
-
-  return entity.attach(Child(parent: parent))
-
-proc addChildren*(
-    entity: Entity,
-    children: varargs[Entity]
-): Entity {.discardable.} =
-  for child in children:
-    child.registerParent(entity)
-
-  return entity
-
-proc clearChildren*(entity: Entity) =
-  for child in entity.get(Parent).children:
-    child.detach(Child)
-  entity.detach(Parent)
-
-proc removeChildren*(entity: Entity, children: varargs[Entity]) =
-  entity.withComponent(Parent):
-    for child in children:
-      component.children.excl child
-
-proc removeParent*(entity: Entity) =
-  let parentEntity = entity.get(Child).parent
-  parentEntity.clearChildren()
+proc new*(_: type Command, world: World): Command =
+  return Command(world: world)
 
 proc create*(command: Command): Entity {.discardable.} =
   return command.world.create()
 
 proc entities*(command: Command): seq[Entity] =
   command.world.entities
+
+proc componentOf*(command: Command, T: typedesc): Component[T] =
+  return command.world.componentOf(T)
 
 proc addResource*[T](command: Command, data: T) =
   command.world.addResource[T](data)
@@ -278,3 +223,31 @@ proc getResource*(command: Command, T: typedesc): T =
 
 proc deleteResource*(command: Command, T: typedesc) =
   command.world.deleteResource(T)
+
+proc createQuery*(
+    world: World,
+    qAll: seq[string],
+    qAny: seq[string] = @[],
+    qNone: seq[string] = @[]
+): Query =
+  return Query(
+    componentSet: qAll,
+    process: (e: Entity) =>
+      e.hasAll(qAll) and e.hasAny(qAny) and e.hasNone(qNone),
+    world: world
+  )
+
+proc queriedEntities*(query: Query): seq[Entity] =
+  return query.world.entities.filter(query.process)
+
+proc registerSystem*(world: World, systemProc: System) =
+  world.systems.incl systemProc
+
+proc registerStartupSystem*(world: World, systemProc: System) =
+  world.startupSystems.incl systemProc
+
+proc runSystems*(world: World) =
+  for s in world.startupSystems:
+    s(world)
+  for s in world.startupSystems:
+    s(world)

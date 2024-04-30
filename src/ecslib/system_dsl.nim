@@ -1,80 +1,86 @@
 import
   std/macros,
-  std/sequtils,
-  std/tables,
   ./type_definition
 
-macro system*(theProc: untyped): untyped =
-  # proc f(all = [Position], any = [Attack, Magic], none = [])
-  if theProc.params.len <= 1:
-    return newProc(
-      name = theProc[0],
-      params = [newEmptyNode(), newIdentDefs(ident"command", ident"Command")],
-      body = theProc.body
-    )
+macro iterate*(query: Query, signature: untyped, body: untyped): untyped =
+  ## q1.iterate((pos, vel) in (Pos, Vel)):
+  ##   pos.x = vel.x * dt
+  ##   pos.y = vel.y * dt
+  let (variables, op, types) = unpackInfix(signature)
+  if op != "in":
+    error "Invalid syntax", signature[0]
 
-  let queryIdentDefs = theProc.params[1..^1]
-
-  var queryTable: Table[string, seq[string]] = initTable[string, seq[string]]()
-  queryTable["all"] = @[]
-  queryTable["any"] = @[]
-  queryTable["none"] = @[]
-
-  for node in queryIdentDefs:
-    if node[2].kind != nnkBracket:
-      error "Unsupported syntax", node
-
-    let key = node[0].strVal
-    if key notin queryTable.keys.toSeq:
-      error "Unsupported syntax", node[0]
-
-    for c in node[2][0..^1]:
-      let name = block:
-        if c.kind == nnkVarTy: c[0].strVal
-        else: c.strVal
-      queryTable[key].add name
-
-  let systemBody = theProc.body
-
-  block:
+  let variableDefs = newStmtList()
+  for i in 0..<variables.len:
     let
-      All = newLit(queryTable["all"])
-      Any = newLit(queryTable["any"])
-      None = newLit(queryTable["none"])
-    systemBody.insert 0, quote do:
-      proc getQueriedEntities(command: Command): seq[Entity] =
-        for e in command.entities:
-          if e.hasAll(`All`) and e.hasAny(`Any`) and e.hasNone(`None`):
-            result.add e
+      name = variables[i]
+      T = types[i]
 
-  result = newProc(
-    name = theProc[0],
-    params = [newEmptyNode(), newIdentDefs(ident"command", ident"Command")],
-    body = systemBody
+    variableDefs.add quote do:
+      let `name` = entity.get(`T`)
+
+  result = newStmtList(
+    nnkForStmt.newTree(
+      ident"entity",
+      query.newDotExpr(ident"queriedEntities"),
+      quote do:
+    `variableDefs`
+    `body`
+  )
   )
 
-macro each*(systemLoop: ForLoopStmt): untyped =
-  result = nnkForStmt.newTree()
+proc toStrLitQuery(queryElement: NimNode): NimNode {.compileTime.} =
+  result = queryElement.kind.newTree()
+  for i in 0..<queryElement.len:
+    result.add queryElement[i].toStrLit()
 
-  let componentIdents = systemLoop[0..^3]
-  let componentNames = systemLoop[^2][1..^1]
-  let forBody = systemLoop[^1]
+proc readNode(node: NimNode, world: NimNode): NimNode {.compileTime.} =
+  result = newCall(world.newDotExpr(ident"createQuery"))
+  for query in node[1]:
+    query.expectKind(nnkAsgn)
+    query[0].expectKind(nnkIdent)
 
-  result.add ident"entity"
-  result.add ident"getQueriedEntities".newCall(ident"command")
+    case query[0].strVal
+    of "All":
+      result.add query[1][1].toStrLitQuery().prefix"@"
+    of "Any":
+      result.add query[1][1].toStrLitQuery().prefix"@"
+    of "None":
+      result.add query[1][1].toStrLitQuery().prefix"@"
+    else:
+      error "Invalid query", query[0]
 
-  for (ident, ty) in zip(componentIdents, componentNames):
-    if ty.kind == nnkVarTy:
-      let typeName = ty[0]
-      forBody.insert 0, quote do:
-        var `ident` = entity.get(`typeName`)
+macro defineQuery*(world: World, body: untyped): untyped =
+  body.expectKind(nnkStmtList)
 
-      forBody.add quote do:
-        entity.attach(`ident`)
+  result = newStmtList()
+
+  for node in body:
+    node.expectKind(nnkCall)
+    node[0].expectKind(nnkIdent)
+    node[1].expectKind(nnkStmtlist)
+    let queryName = node[0]
+    let queryInstance = readNode(node, world)
+
+    result.add quote do:
+      let `queryName` = `queryInstance`
+
+macro system*(theProc: untyped): untyped =
+  theProc.expectKind(nnkProcDef)
+  result = theProc
+
+  let systemBody = newStmtList()
+
+  for node in theProc.body:
+    case node.kind
+    of nnkUsingStmt:
+      for identDef in node:
+        let varName = identDef[0]
+        let queryName = identDef[2]
+        systemBody.add quote do:
+          let `varName` = `queryName`
 
     else:
-      let typeName = ty
-      forBody.insert 0, quote do:
-        let `ident` = entity.get(`typeName`)
+      systemBody.add node
 
-  result.add forBody
+  result.body = systemBody

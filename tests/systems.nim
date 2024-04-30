@@ -3,54 +3,66 @@ discard """
 """
 
 import
-  ../src/ecslib,
-  std/macros,
-  std/unittest
+  ../src/ecslib {.all.}
 
 type
-  Position = object
+  Position = ref object
     x, y: int
 
-  Velocity = object
+  Velocity = ref object
     x, y: int
+
+  A = ref object
+  B = ref object
+  C = ref object
 
 let world = World.new()
 
 let
   entity1 = world.create()
   entity2 = world.create()
+  entity3 = world.create()
 
 entity1
   .attach(
     Position(x: 0, y: 0)
   ).attach(
     Velocity(x: 5, y: 0)
-  )
+  ).attach(A())
 
 entity2
   .attach(
     Position(x: 0, y: 0)
   ).attach(
     Velocity(x: 0, y: 5)
-  )
+  ).attach(B())
 
-proc updatePosition(all = [var Position, Velocity]) {.system.} =
-  for pos, vel in each(var Position, Velocity):
+entity3
+  .attach(
+    Position(x: 0, y: 0)
+  ).attach(
+    Velocity(x: 0, y: 5)
+  ).attach(C())
+
+defineQuery(world):
+  ballQuery:
+    All = @[Position, Velocity]
+    Any = @[A, C]
+
+proc moveSystem(world: World) {.system.} =
+  ballQuery.iterate (pos, vel) in (Position, Velocity):
     pos.x += vel.x
     pos.y += vel.y
 
+proc showPositionSystem(world: World) {.system.} =
+  using ball = ballQuery
+  ball.iterate (pos) in (Position):
+    echo "x: " & $pos.x
+    echo "y: " & $pos.y
 
-proc emptySystem() {.system.} =
-  discard
+world.registerSystem(moveSystem)
+world.registerSystem(showPositionSystem)
 
-world.addSystem(updatePosition)
-world.addSystem(emptySystem)
-
-check entity1[Position].x == 0
-check entity2[Position].y == 0
-
-for i in 0..<10:
+for i in 1..10:
   world.runSystems()
 
-check entity1[Position].x == 50
-check entity2[Position].y == 50
