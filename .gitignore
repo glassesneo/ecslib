@@ -4,4 +4,4 @@ tests/*
 examples/*
 !*.nim
 !*.nims
-bin/
+nimbledeps/*
