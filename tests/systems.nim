@@ -12,21 +12,17 @@ type
   Velocity = ref object
     x, y: int
 
-  A = ref object
-  B = ref object
-  C = ref object
-
 let world = World.new()
 
 let
-  ball1 = world.create()
+  ball = world.create()
 
-ball1
+ball
   .attach(
     Position(x: 0, y: 0)
   ).attach(
-    Velocity(x: 5, y: 0)
-  ).attach(A())
+    Velocity(x: 5, y: 2)
+  )
 
 proc moveSystem(All: [Position, Velocity]) {.system.} =
   for entity in entities:
