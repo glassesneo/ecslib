@@ -19,50 +19,30 @@ type
 let world = World.new()
 
 let
-  entity1 = world.create()
-  entity2 = world.create()
-  entity3 = world.create()
+  ball1 = world.create()
 
-entity1
+ball1
   .attach(
     Position(x: 0, y: 0)
   ).attach(
     Velocity(x: 5, y: 0)
   ).attach(A())
 
-entity2
-  .attach(
-    Position(x: 0, y: 0)
-  ).attach(
-    Velocity(x: 0, y: 5)
-  ).attach(B())
-
-entity3
-  .attach(
-    Position(x: 0, y: 0)
-  ).attach(
-    Velocity(x: 0, y: 5)
-  ).attach(C())
-
-defineQuery(world):
-  ballQuery:
-    All = @[Position, Velocity]
-    Any = @[A, C]
-
-proc moveSystem(world: World) {.system.} =
-  ballQuery.iterate (pos, vel) in (Position, Velocity):
+proc moveSystem(All: [Position, Velocity]) {.system.} =
+  for entity in entities:
+    let pos = entity.get(Position)
+    let vel = entity.get(Velocity)
     pos.x += vel.x
     pos.y += vel.y
 
-proc showPositionSystem(world: World) {.system.} =
-  using ball = ballQuery
-  ball.iterate (pos) in (Position):
-    echo "x: " & $pos.x
-    echo "y: " & $pos.y
+proc showPositionSystem(All: [Position]) {.system.} =
+  for entity in entities:
+    let pos = entity.get(Position)
+    echo "x: ", pos.x
+    echo "y: ", pos.y
 
 world.registerSystem(moveSystem)
 world.registerSystem(showPositionSystem)
 
-for i in 1..10:
+for i in 0..<10:
   world.runSystems()
-

@@ -1,86 +1,77 @@
 import
   std/macros,
+  std/sequtils,
   ./type_definition
 
-macro iterate*(query: Query, signature: untyped, body: untyped): untyped =
-  ## q1.iterate((pos, vel) in (Pos, Vel)):
-  ##   pos.x = vel.x * dt
-  ##   pos.y = vel.y * dt
-  let (variables, op, types) = unpackInfix(signature)
-  if op != "in":
-    error "Invalid syntax", signature[0]
+type
+  Query = ref object
+    procName: string
+    targets: seq[string]
 
-  let variableDefs = newStmtList()
-  for i in 0..<variables.len:
-    let
-      name = variables[i]
-      T = types[i]
-
-    variableDefs.add quote do:
-      let `name` = entity.get(`T`)
-
-  result = newStmtList(
-    nnkForStmt.newTree(
-      ident"entity",
-      query.newDotExpr(ident"queriedEntities"),
-      quote do:
-    `variableDefs`
-    `body`
-  )
+proc new(
+    _: type Query;
+    procName: string;
+    target: seq[string]
+): Query {.compileTime.} =
+  return Query(
+    procName: procName,
+    targets: target
   )
 
-proc toStrLitQuery(queryElement: NimNode): NimNode {.compileTime.} =
-  result = queryElement.kind.newTree()
-  for i in 0..<queryElement.len:
-    result.add queryElement[i].toStrLit()
+proc toQueryProc(query: Query; entityName: NimNode): NimNode {.compileTime.} =
+  let procName = query.procName.ident
+  let targets = query.targets.newLit()
+  result = quote do:
+    `entityName`.`procName`(`targets`)
 
-proc readNode(node: NimNode, world: NimNode): NimNode {.compileTime.} =
-  result = newCall(world.newDotExpr(ident"createQuery"))
-  for query in node[1]:
-    query.expectKind(nnkAsgn)
-    query[0].expectKind(nnkIdent)
-
-    case query[0].strVal
-    of "All":
-      result.add query[1][1].toStrLitQuery().prefix"@"
-    of "Any":
-      result.add query[1][1].toStrLitQuery().prefix"@"
-    of "None":
-      result.add query[1][1].toStrLitQuery().prefix"@"
-    else:
-      error "Invalid query", query[0]
-
-macro defineQuery*(world: World, body: untyped): untyped =
-  body.expectKind(nnkStmtList)
-
-  result = newStmtList()
-
-  for node in body:
-    node.expectKind(nnkCall)
-    node[0].expectKind(nnkIdent)
-    node[1].expectKind(nnkStmtlist)
-    let queryName = node[0]
-    let queryInstance = readNode(node, world)
-
-    result.add quote do:
-      let `queryName` = `queryInstance`
+proc newAND(a, b: NimNode): NimNode {.compileTime.} =
+  result = infix(a, "and", b)
 
 macro system*(theProc: untyped): untyped =
-  theProc.expectKind(nnkProcDef)
-  result = theProc
+  let queryParams = theProc.params
 
-  let systemBody = newStmtList()
+  case queryParams[0].kind
+  of nnkEmpty:
+    discard
+  of nnkIdent:
+    if not queryParams[0].eqIdent "void":
+      error "System can't return a value", queryParams[0]
+  else:
+    error "System can't return a value", queryParams[0]
 
-  for node in theProc.body:
-    case node.kind
-    of nnkUsingStmt:
-      for identDef in node:
-        let varName = identDef[0]
-        let queryName = identDef[2]
-        systemBody.add quote do:
-          let `varName` = `queryName`
+  var queryList: seq[Query]
 
-    else:
-      systemBody.add node
+  for query in queryParams[1..^1]:
+    var targets: seq[string]
+    for t in query[1]:
+      targets.add t.strVal
+    if targets.len != 0:
+      case query[0].strVal
+      of "All":
+        queryList.add Query.new("hasAll", targets)
 
-  result.body = systemBody
+      of "Any":
+        queryList.add Query.new("hasAny", targets)
+
+      of "None":
+        queryList.add Query.new("hasNone", targets)
+
+      else:
+        error "Unsupported query", query[0]
+
+  let entityName = ident"entity"
+
+  let entitiesName = ident"entities"
+
+  let queriesNode = queryList.mapIt(it.toQueryProc(ident"entity")).foldl(newAND(a, b))
+
+  let processNode = theProc.body
+
+  let systemName = theProc.name
+
+  result = quote do:
+    let `systemName` = System.new(
+      query = proc(`entityName`: Entity): bool = `queriesNode`,
+      process = proc(`entitiesName`: seq[Entity]) = `processNode`,
+    )
+

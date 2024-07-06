@@ -1,10 +1,8 @@
 import
   std/hashes,
   std/macros,
-  std/sets,
   std/sequtils,
   std/strformat,
-  std/sugar,
   std/tables,
   std/typetraits
 
@@ -23,27 +21,26 @@ type
   Resource*[T] = ref object of AbstractResource
     data: T
 
-  System* = (World) -> void
-
   World* = ref object
     nextId: EntityId
     freeIds: seq[EntityId]
     entities: seq[Entity]
     components: Table[string, AbstractComponent]
     resources: Table[string, AbstractResource]
-    systems, startupSystems: HashSet[System]
-
-  Command* = ref object
-    world: World
+    systems, startupSystems: seq[System]
 
   Entity* = ref object
     id: EntityId
     world*: World
 
-  Query* = ref object
-    componentSet: seq[string]
-    process: (Entity) -> bool
-    world: World
+  Query = proc(entity: Entity): bool
+
+  Process = proc(entities: seq[Entity])
+
+  System* = ref object
+    targetedEntities: seq[Entity]
+    query: Query
+    process: Process
 
 const InvalidEntityId*: EntityId = 0
 
@@ -203,51 +200,29 @@ proc delete*(entity: Entity) =
   entity.world.deleteEntity(entity)
   entity.id = InvalidEntityId
 
-proc new*(_: type Command, world: World): Command =
-  return Command(world: world)
-
-proc create*(command: Command): Entity {.discardable.} =
-  return command.world.create()
-
-proc entities*(command: Command): seq[Entity] =
-  command.world.entities
-
-proc componentOf*(command: Command, T: typedesc): Component[T] =
-  return command.world.componentOf(T)
-
-proc addResource*[T](command: Command, data: T) =
-  command.world.addResource[T](data)
-
-proc getResource*(command: Command, T: typedesc): T =
-  command.world.getResource(T)
-
-proc deleteResource*(command: Command, T: typedesc) =
-  command.world.deleteResource(T)
-
-proc createQuery*(
-    world: World,
-    qAll: seq[string],
-    qAny: seq[string] = @[],
-    qNone: seq[string] = @[]
-): Query =
-  return Query(
-    componentSet: qAll,
-    process: (e: Entity) =>
-      e.hasAll(qAll) and e.hasAny(qAny) and e.hasNone(qNone),
-    world: world
+proc new*(_: type System, query: Query, process: Process): System =
+  return System(
+    query: query,
+    process: process,
   )
 
-proc queriedEntities*(query: Query): seq[Entity] =
-  return query.world.entities.filter(query.process)
+proc updateTargets(system: System, world: World) =
+  system.targetedEntities = world.entities.filter(system.query)
 
-proc registerSystem*(world: World, systemProc: System) =
-  world.systems.incl systemProc
+proc update*(system: System, world: World) =
+  system.updateTargets(world)
+  system.process(system.targetedEntities)
 
-proc registerStartupSystem*(world: World, systemProc: System) =
-  world.startupSystems.incl systemProc
+proc registerSystem*(world: World, system: System) =
+  world.systems.add system
+
+proc registerStartupSystem*(world: World, system: System) =
+  world.startupSystems.add system
 
 proc runSystems*(world: World) =
-  for s in world.startupSystems:
-    s(world)
-  for s in world.startupSystems:
-    s(world)
+  for system in world.systems:
+    system.update(world)
+
+proc runStartupSystems*(world: World) =
+  for system in world.startupSystems:
+    system.update(world)
