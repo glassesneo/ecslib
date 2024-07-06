@@ -3,7 +3,7 @@ discard """
 """
 
 import
-  ../src/ecslib {.all.}
+  ../src/ecslib
 
 type
   Position = ref object
