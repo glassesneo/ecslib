@@ -101,22 +101,22 @@ proc entities*(world: World): seq[Entity] =
   world.entities
 
 proc addResource*[T](world: World, data: T) =
-  world.resources[T.name] = Resource[T](data: data)
+  world.resources[typetraits.name(T)] = Resource[T](data: data)
 
 proc getResource*(world: World, T: typedesc): T =
   return world.reesourceOf(T).data
 
 proc deleteResource*(world: World, T: typedesc) =
-  world.resources.del(T.name)
+  world.resources.del(typetraits.name(T))
 
 proc reesourceOf*(world: World, T: typedesc): Resource[T] =
-  return cast[Resource[T]](world.resources[T.name])
+  return cast[Resource[T]](world.resources[typetraits.name(T)])
 
 proc componentOf*(world: World, T: typedesc): Component[T] =
-  return cast[Component[T]](world.components[T.name])
+  return cast[Component[T]](world.components[typetraits.name(T)])
 
 proc has(world: World, T: typedesc): bool =
-  return world.components.hasKey(T.name)
+  return world.components.hasKey(typetraits.name(T))
 
 proc has(world: World, typeName: string): bool =
   return world.components.hasKey(typeName)
@@ -125,8 +125,8 @@ proc isInvalidEntity*(world: World, entity: Entity): bool =
   return entity.id notin world.freeIds
 
 proc attachComponent[T](world: World, data: T, entity: Entity) =
-  if not world.components.hasKey(T.name):
-    world.components[T.name] = Component[T].new()
+  if not world.components.hasKey(typetraits.name(T)):
+    world.components[typetraits.name(T)] = Component[T].new()
 
   world.componentOf(T).attachToEntity(data, entity)
 
