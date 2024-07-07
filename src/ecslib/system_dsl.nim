@@ -59,9 +59,10 @@ macro system*(theProc: untyped): untyped =
       else:
         error "Unsupported query", query[0]
 
-  let entityName = ident"entity"
-
-  let entitiesName = ident"entities"
+  let
+    entityName = ident"entity"
+    entitiesName = ident"entities"
+    commandName = ident"command"
 
   let queriesNode = queryList.mapIt(it.toQueryProc(ident"entity")).foldl(newAND(a, b))
 
@@ -72,6 +73,9 @@ macro system*(theProc: untyped): untyped =
   result = quote do:
     let `systemName` = System.new(
       query = proc(`entityName`: Entity): bool = `queriesNode`,
-      process = proc(`entitiesName`: seq[Entity]) = `processNode`,
+      process = proc(
+        `entitiesName`: seq[Entity];
+        `commandName`: Command
+      ) = `processNode`,
     )
 
