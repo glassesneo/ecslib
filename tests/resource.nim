@@ -28,8 +28,7 @@ let speaker = world.create().attach(SoundManager())
 
 proc playSound(All: [SoundManager]) {.system.} =
   let settings = command.getResource(UserSettings)
-  for entity in entities:
-    let sound = entity.get(SoundManager)
+  for sound in each(entities, [SoundManager]):
     sound.play(settings.soundVolume)
 
 proc turnDownSoundVolume(All: [SoundManager]) {.system.} =
