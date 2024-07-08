@@ -30,15 +30,12 @@ ball
 
 # You can define system using procedure syntax
 proc moveSystem(All: [Position, Velocity]) {.system.} =
-  for entity in entities:
-    let pos = entity.get(Position)
-    let vel = entity.get(Velocity)
+  for pos, vel in each(entities, [Position, Velocity]):
     pos.x += vel.x
     pos.y += vel.y
 
 proc showPositionSystem(All: [Position]) {.system.} =
-  for entity in entities:
-    let pos = entity.get(Position)
+  for pos in each(entities, [Position]):
     echo "x: ", pos.x
     echo "y: ", pos.y
 
