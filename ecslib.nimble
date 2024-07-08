@@ -1,15 +1,15 @@
 # Package
 
-version       = "0.1.0"
-author        = "Glasses-Neo"
-description   = "A new awesome nimble package"
-license       = "MIT"
-srcDir        = "src"
+version = "0.1.0"
+author = "glassesneo"
+description = "A nimble package for Entity Component System"
+license = "MIT"
+srcDir = "src"
 
 
 # Dependencies
 
-requires "nim >= 2.0.0"
+requires "nim >= 2.0.4"
 
 task tests, "Run all tests":
   exec "testament p 'tests/*nim'"
