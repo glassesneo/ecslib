@@ -3,7 +3,7 @@ discard """
 """
 
 import
-  ../src/ecslib {.all.}
+  ../src/ecslib
 
 type
   Position = ref object
@@ -47,17 +47,13 @@ ball2
   )
 
 proc moveSystem(All: [Position, Velocity]) {.system.} =
-  for entity in entities:
-    let pos = entity.get(Position)
-    let vel = entity.get(Velocity)
+  for pos, vel in each(entities, [Position, Velocity]):
     pos.x += vel.x
     pos.y += vel.y
 
 proc showPositionSystem(All: [Position, Name], Any: [A, B]) {.system.} =
-  for entity in entities:
-    let pos = entity.get(Position)
-    let name = entity.get(Name).name
-    echo "[", name, "]"
+  for pos, name in each(entities, [Position, Name]):
+    echo "[", name.name, "]"
     echo "  x: ", pos.x
     echo "  y: ", pos.y
 

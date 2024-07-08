@@ -79,3 +79,30 @@ macro system*(theProc: untyped): untyped =
       ) = `processNode`,
     )
 
+macro each*(loop: ForLoopStmt): untyped =
+  let
+    instanceList = loop[0..^3]
+    entities = loop[^2][1]
+    componentList = loop[^2][2][0..^1]
+    body = newStmtList(loop[^1])
+
+  if instanceList.len != componentList.len:
+    error "The length of the variables and components doesn't match", loop
+
+  let createInstances = newStmtList()
+
+  let entityName = ident"entity"
+
+  for i in 0..<instanceList.len:
+    let
+      instance = instanceList[i]
+      component = componentList[i]
+
+    createInstances.add quote do:
+      let `instance` = `entityName`.get(`component`)
+
+  result = quote do:
+    for `entityName` in `entities`:
+      `createInstances`
+      `body`
+
