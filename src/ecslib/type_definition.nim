@@ -221,11 +221,11 @@ proc update*(system: System, world: World) =
   system.updateTargets(world)
   system.process(system.targetedEntities, world.command)
 
-proc registerSystem*(world: World, system: System) =
-  world.systems.add system
+proc registerSystems*(world: World, systems: varargs[System]) =
+  world.systems.add systems
 
-proc registerStartupSystem*(world: World, system: System) =
-  world.startupSystems.add system
+proc registerStartupSystems*(world: World, systems: varargs[System]) =
+  world.startupSystems.add systems
 
 proc runSystems*(world: World) =
   for system in world.systems:
