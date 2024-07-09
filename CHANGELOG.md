@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+
+## [0.2.0] -2024-07-10
 ### Added
 - `registerSystems`, `registerStartupSystems` to register systems
 
@@ -16,4 +18,5 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 0.1.0 - 2024-07-08
 
-[Unreleased]: https://github.com/glassesneo/ecslib/compare/0.1.0...HEAD
+[Unreleased]: https://github.com/glassesneo/ecslib/compare/0.2.0...HEAD
+[0.2.0]: https://github.com/glassesneo/ecslib/compare/0.1.0...0.2.0
