@@ -23,9 +23,6 @@ proc toQueryProc(query: Query; entityName: NimNode): NimNode {.compileTime.} =
   result = quote do:
     `entityName`.`procName`(`targets`)
 
-proc newAND(a, b: NimNode): NimNode {.compileTime.} =
-  result = infix(a, "and", b)
-
 macro system*(theProc: untyped): untyped =
   let queryParams = theProc.params
 
@@ -67,7 +64,9 @@ macro system*(theProc: untyped): untyped =
     if queryList.len == 0:
       newLit(true)
     else:
-      queryList.mapIt(it.toQueryProc(ident"entity")).foldl(newAND(a, b))
+      queryList
+        .map(proc(q: Query): NimNode = q.toQueryProc(ident"entity"))
+        .foldl(infix(a, "and", b))
 
   let processNode = theProc.body
 
