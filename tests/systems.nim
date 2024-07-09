@@ -57,8 +57,12 @@ proc showPositionSystem(All: [Position, Name], Any: [A, B]) {.system.} =
     echo "  x: ", pos.x
     echo "  y: ", pos.y
 
+proc doNothing() {.system.} =
+  discard
+
 world.registerSystem(moveSystem)
 world.registerSystem(showPositionSystem)
+world.registerSystem(doNothing)
 
 for i in 0..<10:
   world.runSystems()

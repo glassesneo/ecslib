@@ -1,7 +1,6 @@
 import
   std/macros,
-  std/sequtils,
-  ./type_definition
+  std/sequtils
 
 type
   Query = ref object
@@ -64,7 +63,11 @@ macro system*(theProc: untyped): untyped =
     entitiesName = ident"entities"
     commandName = ident"command"
 
-  let queriesNode = queryList.mapIt(it.toQueryProc(ident"entity")).foldl(newAND(a, b))
+  let queriesNode = block:
+    if queryList.len == 0:
+      newLit(true)
+    else:
+      queryList.mapIt(it.toQueryProc(ident"entity")).foldl(newAND(a, b))
 
   let processNode = theProc.body
 
