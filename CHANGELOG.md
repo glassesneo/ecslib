@@ -5,13 +5,19 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+### Added
+- `create()`, `addResource()`, `registerSystems()` for `Commands`
+- Terminate systems called when the game quits
+
+### Changed
+- Rename `Command` to `Commands`
 
 ## [0.2.0] -2024-07-10
 ### Added
-- `registerSystems`, `registerStartupSystems` to register systems
+- `registerSystems()`, `registerStartupSystems()` to register systems
 
 ### Removed
-- Remove `registerSystem`, `registerStartupSystem`
+- Remove `registerSystem()`, `registerStartupSystem()`
 
 ### Fixed
 - Fix a compiling issue in `system` with no arguments
