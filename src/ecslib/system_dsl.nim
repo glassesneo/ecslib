@@ -58,7 +58,7 @@ macro system*(theProc: untyped): untyped =
   let
     entityName = ident"entity"
     entitiesName = ident"entities"
-    commandName = ident"command"
+    commandsName = ident"commands"
 
   let queriesNode = block:
     if queryList.len == 0:
@@ -77,7 +77,7 @@ macro system*(theProc: untyped): untyped =
       query = proc(`entityName`: Entity): bool = `queriesNode`,
       process = proc(
         `entitiesName`: seq[Entity];
-        `commandName`: Command
+        `commandsName`: Commands
       ) = `processNode`,
     )
 

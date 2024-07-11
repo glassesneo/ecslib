@@ -24,7 +24,7 @@ type
   World* = ref object
     nextId: EntityId
     freeIds: seq[EntityId]
-    command: Command
+    commands: Commands
     entities: seq[Entity]
     components: Table[string, AbstractComponent]
     resources: Table[string, AbstractResource]
@@ -36,14 +36,14 @@ type
 
   Query = proc(entity: Entity): bool
 
-  Process = proc(entities: seq[Entity], command: Command)
+  Process = proc(entities: seq[Entity], commands: Commands)
 
   System* = ref object
     targetedEntities: seq[Entity]
     query: Query
     process: Process
 
-  Command* = ref object
+  Commands* = ref object
     world: World
 
 const InvalidEntityId*: EntityId = 0
@@ -98,12 +98,12 @@ iterator pairs*[T](component: Component[T]): tuple[key: Entity, val: T] =
   for e, i in component.indexTable.pairs:
     yield (e, component.storage[i])
 
-proc new*(_: type Command, world: World): Command =
-  return Command(world: world)
+proc new*(_: type Commands, world: World): Commands =
+  return Commands(world: world)
 
 proc new*(_: type World): World =
   result = World(nextId: 1)
-  result.command = Command.new(result)
+  result.commands = Commands.new(result)
 
 proc entities*(world: World): seq[Entity] =
   world.entities
@@ -219,7 +219,7 @@ proc updateTargets(system: System, world: World) =
 
 proc update*(system: System, world: World) =
   system.updateTargets(world)
-  system.process(system.targetedEntities, world.command)
+  system.process(system.targetedEntities, world.commands)
 
 proc registerSystems*(world: World, systems: varargs[System]) =
   world.systems.add systems
@@ -242,6 +242,6 @@ proc runTerminateSystems*(world: World) =
   for system in world.terminateSystems:
     system.update(world)
 
-proc getResource*(command: Command, T: typedesc): T =
-  return command.world.getResource(T)
+proc getResource*(commands: Commands, T: typedesc): T =
+  return commands.world.getResource(T)
 

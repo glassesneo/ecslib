@@ -27,12 +27,12 @@ world.addResource(
 let speaker = world.create().attach(SoundManager())
 
 proc playSound(All: [SoundManager]) {.system.} =
-  let settings = command.getResource(UserSettings)
+  let settings = commands.getResource(UserSettings)
   for sound in each(entities, [SoundManager]):
     sound.play(settings.soundVolume)
 
 proc turnDownSoundVolume(All: [SoundManager]) {.system.} =
-  let settings = command.getResource(UserSettings)
+  let settings = commands.getResource(UserSettings)
   settings.soundVolume -= 5
 
 world.registerSystems(playSound, turnDownSoundVolume)
