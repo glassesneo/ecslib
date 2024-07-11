@@ -8,6 +8,10 @@ import
 type
   EntityId* = uint
 
+  Entity* = ref object
+    id: EntityId
+    world*: World
+
   AbstractComponent* = ref object of RootObj
     indexTable: Table[Entity, int]
     freeIndex: seq[int]
@@ -28,10 +32,6 @@ type
     components: Table[string, AbstractComponent]
     resources: Table[string, AbstractResource]
     systems, startupSystems, terminateSystems: seq[System]
-
-  Entity* = ref object
-    id: EntityId
-    world*: World
 
   Query = proc(entity: Entity): bool
 
@@ -241,6 +241,15 @@ proc runTerminateSystems*(world: World) =
   for system in world.terminateSystems:
     system.update(world)
 
+proc create*(commands: Commands): Entity {.discardable.} =
+  return commands.world.create()
+
+proc addResource*[T](commands: Commands, data: T) =
+  commands.world.addResource(data)
+
 proc getResource*(commands: Commands, T: typedesc): T =
   return commands.world.getResource(T)
+
+proc registerSystems*(commands: Commands, systems: varargs[System]) =
+  commands.world.registerSystems(systems)
 
