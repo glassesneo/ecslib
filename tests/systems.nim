@@ -46,6 +46,9 @@ ball2
     Name(name: "ball2")
   )
 
+proc startup {.system.} =
+  echo "=====Startup!====="
+
 proc moveSystem(All: [Position, Velocity]) {.system.} =
   for pos, vel in each(entities, [Position, Velocity]):
     pos.x += vel.x
@@ -60,9 +63,14 @@ proc showPositionSystem(All: [Position, Name], Any: [A, B]) {.system.} =
 proc doNothing() {.system.} =
   discard
 
-world.registerSystem(moveSystem)
-world.registerSystem(showPositionSystem)
-world.registerSystem(doNothing)
+proc terminate {.system.} =
+  echo "=====Terminate!====="
 
+world.registerStartupSystems(startup)
+world.registerSystems(moveSystem, showPositionSystem, doNothing)
+world.registerTerminateSystems(terminate)
+
+world.runStartupSystems()
 for i in 0..<10:
   world.runSystems()
+world.runTerminateSystems()

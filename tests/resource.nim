@@ -35,8 +35,7 @@ proc turnDownSoundVolume(All: [SoundManager]) {.system.} =
   let settings = command.getResource(UserSettings)
   settings.soundVolume -= 5
 
-world.registerSystem(playSound)
-world.registerSystem(turnDownSoundVolume)
+world.registerSystems(playSound, turnDownSoundVolume)
 
 for i in 0..<10:
   world.runSystems()

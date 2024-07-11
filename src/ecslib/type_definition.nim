@@ -28,7 +28,7 @@ type
     entities: seq[Entity]
     components: Table[string, AbstractComponent]
     resources: Table[string, AbstractResource]
-    systems, startupSystems: seq[System]
+    systems, startupSystems, terminateSystems: seq[System]
 
   Entity* = ref object
     id: EntityId
@@ -227,12 +227,19 @@ proc registerSystems*(world: World, systems: varargs[System]) =
 proc registerStartupSystems*(world: World, systems: varargs[System]) =
   world.startupSystems.add systems
 
+proc registerTerminateSystems*(world: World, systems: varargs[System]) =
+  world.terminateSystems.add systems
+
 proc runSystems*(world: World) =
   for system in world.systems:
     system.update(world)
 
 proc runStartupSystems*(world: World) =
   for system in world.startupSystems:
+    system.update(world)
+
+proc runTerminateSystems*(world: World) =
+  for system in world.terminateSystems:
     system.update(world)
 
 proc getResource*(command: Command, T: typedesc): T =
