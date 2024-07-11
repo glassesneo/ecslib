@@ -74,11 +74,13 @@ macro system*(theProc: untyped): untyped =
 
   result = quote do:
     let `systemName` = System.new(
-      query = proc(`entityName`: Entity): bool = `queriesNode`,
+      query = proc(
+          `entityName`: Entity
+      ): bool {.raises: [KeyError], gcsafe.} = `queriesNode`,
       process = proc(
         `entitiesName`: seq[Entity];
         `commandsName`: Commands
-      ) = `processNode`,
+      ) {.raises: [Exception], gcsafe.} = `processNode`,
     )
 
 macro each*(loop: ForLoopStmt): untyped =
