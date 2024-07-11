@@ -2,7 +2,6 @@ import
   std/hashes,
   std/macros,
   std/sequtils,
-  std/strformat,
   std/tables,
   std/typetraits
 
@@ -69,7 +68,7 @@ proc `[]`[T](component: Component[T], entity: Entity): T =
   return component.storage[component.indexTable[entity]]
 
 proc `[]=`[T](component: Component[T], entity: Entity, value: T) =
-  if component.indexTable.hasKey(entity):
+  if entity in component.indexTable:
     component.storage[component.indexTable[entity]] = value
     return
 
@@ -85,7 +84,7 @@ proc attachToEntity[T](component: Component[T], data: T, entity: Entity) =
   component[entity] = data
 
 proc has(component: AbstractComponent, entity: Entity): bool =
-  return component.indexTable.hasKey(entity)
+  return entity in component.indexTable
 
 proc deleteEntity(component: AbstractComponent, entity: Entity) =
   component.indexTable.del(entity)
@@ -108,32 +107,32 @@ proc new*(_: type World): World =
 proc entities*(world: World): seq[Entity] =
   world.entities
 
+proc resourceOf(world: World, T: typedesc): Resource[T] =
+  return cast[Resource[T]](world.resources[typetraits.name(T)])
+
 proc addResource*[T](world: World, data: T) =
   world.resources[typetraits.name(T)] = Resource[T](data: data)
 
 proc getResource*(world: World, T: typedesc): T =
-  return world.reesourceOf(T).data
+  return world.resourceOf(T).data
 
 proc deleteResource*(world: World, T: typedesc) =
   world.resources.del(typetraits.name(T))
-
-proc reesourceOf*(world: World, T: typedesc): Resource[T] =
-  return cast[Resource[T]](world.resources[typetraits.name(T)])
 
 proc componentOf*(world: World, T: typedesc): Component[T] =
   return cast[Component[T]](world.components[typetraits.name(T)])
 
 proc has(world: World, T: typedesc): bool =
-  return world.components.hasKey(typetraits.name(T))
+  return typetraits.name(T) in world.components
 
 proc has(world: World, typeName: string): bool =
-  return world.components.hasKey(typeName)
+  return typeName in world.components
 
 proc isInvalidEntity*(world: World, entity: Entity): bool =
   return entity.id notin world.freeIds
 
 proc attachComponent[T](world: World, data: T, entity: Entity) =
-  if not world.components.hasKey(typetraits.name(T)):
+  if typetraits.name(T) notin world.components:
     world.components[typetraits.name(T)] = Component[T].new()
 
   world.componentOf(T).attachToEntity(data, entity)
@@ -153,7 +152,7 @@ proc id*(entity: Entity): EntityId =
   return entity.id
 
 proc `$`*(entity: Entity): string =
-  return fmt"Entity(id: {entity.id})"
+  return "Entity(id: " & $entity.id & ")"
 
 proc isValid*(entity: Entity): bool =
   entity.world.isInvalidEntity(entity)
