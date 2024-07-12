@@ -4,4 +4,4 @@ import
 
 export
   ecslib.type_definition,
-  ecslib.system_dsl
+  ecslib.dsl
