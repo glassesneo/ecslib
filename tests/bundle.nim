@@ -6,36 +6,29 @@ import
   ../src/ecslib
 
 type
-  Position = object
+  Position = ref object
     x, y: int
 
-  Velocity = object
+  Velocity = ref object
     x, y: int
 
-  HP = object
+  HP = ref object
     max, current: int
 
-  MP = object
+  MP = ref object
     max, current: int
-
-  PlayerStatus = tuple
-    hp: HP
-    mp: MP
-
-proc new(_: type PlayerStatus, hp: HP, mp: MP): PlayerStatus =
-  result = (
-    hp: hp,
-    mp: mp
-  )
 
 let world = World.new()
 
+proc withPlayerBundle(entity: Entity, hp: HP, mp: MP): Entity =
+  return entity.withBundle((hp, mp))
+
 let entity {.used.} = world.create()
   .withBundle((
-  Position(x: 5, y: 5),
-  Velocity(x: 0, y: 0)
+    Position(x: 5, y: 5),
+    Velocity(x: 0, y: 0)
   ))
-  .withBundle(PlayerStatus.new(
+  .withPlayerBundle(
     hp = HP(max: 200),
     mp = MP(max: 80)
-  ))
+  )

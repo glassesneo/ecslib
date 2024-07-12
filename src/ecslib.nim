@@ -1,5 +1,5 @@
 import
-  ecslib/[system_dsl, type_definition]
+  ecslib/[dsl, type_definition]
 
 
 export
