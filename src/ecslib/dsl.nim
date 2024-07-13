@@ -70,7 +70,7 @@ macro system*(theProc: untyped): untyped =
 
   let processNode = theProc.body
 
-  let systemName = theProc.name
+  let systemName = theProc[0]
 
   result = quote do:
     let `systemName` = System.new(

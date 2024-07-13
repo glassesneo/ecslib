@@ -60,7 +60,7 @@ proc showPositionSystem(All: [Position, Name], Any: [A, B]) {.system.} =
     echo "  x: ", pos.x
     echo "  y: ", pos.y
 
-proc doNothing() {.system.} =
+proc doNothing*() {.system.} =
   discard
 
 proc terminate {.system.} =
@@ -70,7 +70,8 @@ world.registerStartupSystems(startup)
 world.registerSystems(moveSystem, showPositionSystem, doNothing)
 world.registerTerminateSystems(terminate)
 
-world.runStartupSystems()
-for i in 0..<10:
-  world.runSystems()
-world.runTerminateSystems()
+if isMainModule:
+  world.runStartupSystems()
+  for i in 0..<10:
+    world.runSystems()
+  world.runTerminateSystems()
