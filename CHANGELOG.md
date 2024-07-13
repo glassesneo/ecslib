@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2024-07-13
+### Added
+- Adopt Nim's effect system
+
 ## [0.3.0] - 2024-07-12
 ### Added
 - `create()`, `addResource()`, `registerSystems()` for `Commands`
@@ -26,6 +30,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## 0.1.0 - 2024-07-08
 
-[Unreleased]: https://github.com/glassesneo/ecslib/compare/0.3.0...HEAD
+[Unreleased]: https://github.com/glassesneo/ecslib/compare/0.3.1...HEAD
+[0.3.1]: https://github.com/glassesneo/ecslib/compare/0.3.0...0.3.1
 [0.3.0]: https://github.com/glassesneo/ecslib/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/glassesneo/ecslib/compare/0.1.0...0.2.0
