@@ -98,14 +98,6 @@ proc has(component: AbstractComponent, entity: Entity): bool =
 proc deleteEntity(component: AbstractComponent, entity: Entity) =
   component.indexTable.del(entity)
 
-iterator items*[T](component: Component[T]): T =
-  for i in component.indexTable.values:
-    yield component.storage[i]
-
-iterator pairs*[T](component: Component[T]): tuple[key: Entity, val: T] =
-  for e, i in component.indexTable.pairs:
-    yield (e, component.storage[i])
-
 proc new*(_: type Commands, world: World): Commands =
   return Commands(world: world)
 
@@ -128,7 +120,7 @@ proc getResource*(world: World, T: typedesc): T {.raises: [KeyError].} =
 proc deleteResource*(world: World, T: typedesc) =
   world.resources.del(typetraits.name(T))
 
-proc componentOf*(world: World, T: typedesc): Component[T] {.raises: [KeyError].} =
+proc componentOf(world: World, T: typedesc): Component[T] {.raises: [KeyError].} =
   return cast[Component[T]](world.components[typetraits.name(T)])
 
 proc has(world: World, T: typedesc): bool =
