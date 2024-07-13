@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.2] - 2024-07-13
+### Changed
+- Stopped using `{.raises.}` for anonymous systems
+
 ## [0.3.1] - 2024-07-13
 ### Added
 - Adopt Nim's effect system

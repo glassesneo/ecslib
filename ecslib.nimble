@@ -1,6 +1,6 @@
 # Package
 
-version = "0.3.1"
+version = "0.3.2"
 author = "glassesneo"
 description = "A nimble package for Entity Component System"
 license = "MIT"
