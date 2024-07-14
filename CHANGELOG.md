@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+### Added
+- `hasResource()` for `World` and `Commands` to get if a resource is added or not
 ### Fixed
 - Fixed an issue on exporting systems
 

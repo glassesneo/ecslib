@@ -120,6 +120,12 @@ proc getResource*(world: World, T: typedesc): T {.raises: [KeyError].} =
 proc deleteResource*(world: World, T: typedesc) =
   world.resources.del(typetraits.name(T))
 
+proc hasResource*(world: World, T: typedesc): bool =
+  return typetraits.name(T) in world.resources
+
+proc hasResource*(world: World, typeName: string): bool =
+  return typeName in world.resources
+
 proc componentOf(world: World, T: typedesc): Component[T] {.raises: [KeyError].} =
   return cast[Component[T]](world.components[typetraits.name(T)])
 
@@ -256,6 +262,12 @@ proc addResource*[T](commands: Commands, data: T) =
 
 proc getResource*(commands: Commands, T: typedesc): T {.raises: [KeyError].} =
   return commands.world.getResource(T)
+
+proc hasResource*(commands: Commands, T: typedesc): bool =
+  return commands.world.hasResource(T)
+
+proc hasResource*(commands: Commands, typeName: string): bool =
+  return commands.world.hasResource(typeName)
 
 proc registerSystems*(commands: Commands, systems: varargs[System]) =
   commands.world.registerSystems(systems)
