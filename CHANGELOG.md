@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
 - `hasResource()` for `World` and `Commands` to get if a resource is added or not
+
 ### Fixed
 - Fixed an issue on exporting systems
+- Fixed the order of Terminate systems
 
 ## [0.3.2] - 2024-07-13
 ### Changed

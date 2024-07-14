@@ -251,7 +251,7 @@ proc runStartupSystems*(world: World) {.raises: [Exception].} =
     system.update(world)
 
 proc runTerminateSystems*(world: World) {.raises: [Exception].} =
-  for system in world.terminateSystems:
+  for system in world.terminateSystems[^1..0]:
     system.update(world)
 
 proc create*(commands: Commands): Entity {.discardable.} =
