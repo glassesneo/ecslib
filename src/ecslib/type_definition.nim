@@ -1,6 +1,7 @@
 {.push raises: [].}
 
 import
+  std/algorithm,
   std/hashes,
   std/macros,
   std/sequtils,
@@ -251,7 +252,7 @@ proc runStartupSystems*(world: World) {.raises: [Exception].} =
     system.update(world)
 
 proc runTerminateSystems*(world: World) {.raises: [Exception].} =
-  for system in world.terminateSystems[^1..0]:
+  for system in world.terminateSystems.reversed():
     system.update(world)
 
 proc create*(commands: Commands): Entity {.discardable.} =
