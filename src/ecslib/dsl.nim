@@ -1,6 +1,5 @@
 import
-  std/[macros, sequtils],
-  ./type_definition
+  std/[macros, sequtils]
 
 type
   Query = ref object
@@ -109,25 +108,4 @@ macro each*(loop: ForLoopStmt): untyped =
     for `entityName` in `entities`:
       `createInstances`
       `body`
-
-macro updateResource*(world: World; args: untyped): untyped =
-  args.expectKind(nnkObjConstr)
-  let componentName = ident"component"
-  let T = args[0]
-  var assignmentList: seq[NimNode]
-
-  for node in args[1..^1]:
-    let
-      name = node[0]
-      value = node[1]
-
-    assignmentList.add quote do:
-      `componentName`.`name` = `value`
-
-  result = quote do:
-    block:
-      let `componentName` = `world`.getResource(`T`)
-
-  for assignment in assignmentList:
-    result[1].add assignment
 

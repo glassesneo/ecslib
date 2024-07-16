@@ -12,6 +12,9 @@ type
 
 let world = World.new()
 
+proc settings {.system.} =
+  commands.updateResource(Window(title: "changed", width: 500))
+
 proc outputWindowState {.system.} =
   let window = commands.getResource(Window)
   echo "title: ", window.title
@@ -19,11 +22,8 @@ proc outputWindowState {.system.} =
   echo "height: ", window.height
 
 world.addResource(Window(title: "original", width: 640, height: 480))
+world.registerStartupSystems(settings)
 world.registerSystems(outputWindowState)
 
+world.runStartupSystems()
 world.runSystems()
-
-world.updateResource(Window(title: "changed", width: 500))
-
-world.runSystems()
-
