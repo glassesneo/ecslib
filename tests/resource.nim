@@ -6,39 +6,24 @@ import
   ../src/ecslib
 
 type
-  Language* = enum
-    Japanese
-    English
-  UserSettings = ref object
-    language: Language
-    soundVolume: range[0..100]
-
-  SoundManager = ref object
-
-proc play(sound: SoundManager, soundVolue: range[0..100]) =
-  echo "playing sound at volume ", soundVolue
+  Window = ref object
+    title: string
+    width, height: int
 
 let world = World.new()
 
-world.addResource(
-  UserSettings(language: Japanese, soundVolume: 50)
-)
+proc outputWindowState {.system.} =
+  let window = commands.getResource(Window)
+  echo "title: ", window.title
+  echo "width: ", window.width
+  echo "height: ", window.height
 
-let speaker = world.create().attach(SoundManager())
+world.addResource(Window(title: "original", width: 640, height: 480))
+world.registerSystems(outputWindowState)
 
-proc playSound(All: [SoundManager]) {.system.} =
-  let settings = commands.getResource(UserSettings)
-  for sound in each(entities, [SoundManager]):
-    sound.play(settings.soundVolume)
+world.runSystems()
 
-proc turnDownSoundVolume(All: [SoundManager]) {.system.} =
-  let settings = commands.getResource(UserSettings)
-  settings.soundVolume -= 5
+world.updateResource(Window(title: "changed", width: 500))
 
-world.registerSystems(playSound, turnDownSoundVolume)
-
-for i in 0..<10:
-  world.runSystems()
-
-world.deleteResource(UserSettings)
+world.runSystems()
 
