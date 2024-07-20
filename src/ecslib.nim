@@ -1,7 +1,7 @@
 import
-  ecslib/[dsl, type_definition]
+  ecslib/[dsl, ecs_types]
 
 
 export
-  ecslib.type_definition,
+  ecslib.ecs_types,
   ecslib.dsl
