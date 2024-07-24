@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
 - `hasResource()` for `World` and `Commands` to get if a resource is added or not
+- `getEntity()` for `World` and `Commands` to get Entity by its id
 
 ### Fixed
 - Fixed an issue on exporting systems
