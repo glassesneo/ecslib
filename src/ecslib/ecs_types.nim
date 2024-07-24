@@ -34,6 +34,7 @@ type
     freeIds: seq[EntityId]
     commands: Commands
     entities: seq[Entity]
+    idIndexMap: Table[EntityId, Entity]
     components: Table[string, AbstractComponent]
     resources: Table[string, AbstractResource]
     systems, startupSystems, terminateSystems: seq[System]
@@ -71,6 +72,10 @@ proc create*(world: World): Entity {.discardable.} =
     result = Entity.new(world.freeIds.pop, world)
 
   world.entities.add result
+  world.idIndexMap[result.id] = result
+
+proc getEntity*(world: World, id: EntityId): Entity {.raises: [KeyError].} =
+  return world.idIndexMap[id]
 
 proc `[]`[T](component: Component[T], entity: Entity): T {.raises: [KeyError].} =
   return component.storage[component.indexTable[entity]]
@@ -196,6 +201,7 @@ proc detachComponent(world: World, T: typedesc, entity: Entity) {.raises: [KeyEr
   world.componentOf(T).deleteEntity(entity)
 
 proc deleteEntity(world: World, entity: Entity) =
+  world.idIndexMap.del(entity.id)
   world.freeIds.add(entity.id)
   for c in world.components.values:
     c.deleteEntity(entity)
@@ -301,6 +307,9 @@ proc runTerminateSystems*(world: World) {.raises: [Exception].} =
 
 proc create*(commands: Commands): Entity {.discardable.} =
   return commands.world.create()
+
+proc getEntity*(commands: Commands, id: EntityId): Entity =
+  return commands.world.getEntity(id)
 
 proc addResource*[T](commands: Commands, data: T) =
   commands.world.addResource(data)
