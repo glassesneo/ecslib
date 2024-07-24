@@ -308,7 +308,7 @@ proc runTerminateSystems*(world: World) {.raises: [Exception].} =
 proc create*(commands: Commands): Entity {.discardable.} =
   return commands.world.create()
 
-proc getEntity*(commands: Commands, id: EntityId): Entity =
+proc getEntity*(commands: Commands, id: EntityId): Entity {.raises: [KeyError].} =
   return commands.world.getEntity(id)
 
 proc addResource*[T](commands: Commands, data: T) =

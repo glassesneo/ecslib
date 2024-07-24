@@ -10,18 +10,27 @@ type
     title: string
     width, height: int
 
+  Options = ref object
+    developerMode: bool
+    outputState: bool
+
 let world = World.new()
 
-proc settings {.system.} =
-  commands.updateResource(Window(title: "changed", width: 500))
+proc settings(options: Resource[Options]) {.system.} =
+  if options.developerMode:
+    commands.updateResource(Window(title: "dev mode", width: 500))
 
-proc outputWindowState {.system.} =
-  let window = commands.getResource(Window)
-  echo "title: ", window.title
-  echo "width: ", window.width
-  echo "height: ", window.height
+proc outputWindowState(
+    options: Resource[Options],
+    window: Resource[Window]
+) {.system.} =
+  if options.outputState:
+    echo "title: ", window.title
+    echo "width: ", window.width
+    echo "height: ", window.height
 
 world.addResource(Window(title: "original", width: 640, height: 480))
+world.addResource(Options(developerMode: true, outputState: true))
 world.registerStartupSystems(settings)
 world.registerSystems(outputWindowState)
 

@@ -1,5 +1,5 @@
 import
-  std/[macros, sequtils]
+  std/[algorithm, macros, sequtils]
 
 type
   Query = ref object
@@ -22,6 +22,17 @@ proc toQueryProc(query: Query; entityName: NimNode): NimNode {.compileTime.} =
   result = quote do:
     `entityName`.`procName`(`targets`)
 
+proc mapToQueryProcName(queryNode: NimNode): string =
+  case queryNode[0].strVal
+  of "All":
+    return "hasAll"
+  of "Any":
+    return "hasAny"
+  of "None":
+    return "hasNone"
+  else:
+    error "Unsupported query", queryNode[0]
+
 macro system*(theProc: untyped): untyped =
   let queryParams = theProc.params
 
@@ -34,30 +45,37 @@ macro system*(theProc: untyped): untyped =
   else:
     error "System can't return a value", queryParams[0]
 
-  var queryList: seq[Query]
-
-  for query in queryParams[1..^1]:
-    var targets: seq[string]
-    for t in query[1]:
-      targets.add t.strVal
-    if targets.len != 0:
-      case query[0].strVal
-      of "All":
-        queryList.add Query.new("hasAll", targets)
-
-      of "Any":
-        queryList.add Query.new("hasAny", targets)
-
-      of "None":
-        queryList.add Query.new("hasNone", targets)
-
-      else:
-        error "Unsupported query", query[0]
-
   let
     entityName = ident"entity"
     entitiesName = ident"entities"
     commandsName = ident"commands"
+
+  var
+    queryList: seq[Query]
+    resourceAssignmentList: seq[NimNode]
+
+  for query in queryParams[1..^1]:
+    case query[1].kind
+    of nnkBracket:
+      var targets: seq[string]
+      for t in query[1]:
+        targets.add t.strVal
+      if targets.len != 0:
+        let procName = mapToQueryProcName(query)
+        queryList.add Query.new(procName, targets)
+
+    of nnkBracketExpr:
+      if not (query[1][0].eqIdent"Resource" and query[1].len == 2):
+        error "Unsupported syntax", query[1][0]
+
+      let instance = query[0]
+      let resource = query[1][1]
+
+      resourceAssignmentList.add quote do:
+        let `instance` = `commandsName`.getResource(`resource`)
+
+    else:
+      error "Unsupported syntax", query[1]
 
   let queriesNode = block:
     if queryList.len == 0:
@@ -68,6 +86,9 @@ macro system*(theProc: untyped): untyped =
         .foldl(infix(a, "and", b))
 
   let processNode = theProc.body
+
+  for assignment in resourceAssignmentList.reversed:
+    processNode.insert 0, assignment
 
   let systemName = theProc[0]
 

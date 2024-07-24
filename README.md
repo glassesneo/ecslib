@@ -14,6 +14,10 @@ type
   Velocity = ref object
     x, y: int
 
+# Resources, global data for systems
+  Time = ref object
+    deltaTime: float
+
 let world = World.new()
 
 # Entity
@@ -29,15 +33,20 @@ ball
   )
 
 # You can define system using procedure syntax
-proc moveSystem(All: [Position, Velocity]) {.system.} =
+proc moveSystem(All: [Position, Velocity], time: Resource[Time]) {.system.} =
+  # Query targeted entities by `All`, `Any`, and `None` args
+  # Specify resources that will be used in the system
   for pos, vel in each(entities, [Position, Velocity]):
-    pos.x += vel.x
-    pos.y += vel.y
+    pos.x += vel.x * time.deltaTime
+    pos.y += vel.y * time.deltaTime
 
 proc showPositionSystem(All: [Position]) {.system.} =
   for pos in each(entities, [Position]):
     echo "x: ", pos.x
     echo "y: ", pos.y
+
+# Add resources to world
+world.addResource(Time(deltaTime: 30))
 
 # Register systems to world
 world.registerSystem(moveSystem)
@@ -49,7 +58,7 @@ for i in 0..<10:
 
 ## Installation
 ```nim
-nimble install https://github.com/glassesneo/ecslib
+nimble install ecslib
 ```
 
 # License
