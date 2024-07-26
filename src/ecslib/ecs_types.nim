@@ -29,6 +29,11 @@ type
   Resource*[T] = ref object of AbstractResource
     data: T
 
+  AbstractEvent* = ref object of RootObj
+
+  Event*[T] = ref object of AbstractEvent
+    queue: seq[T]
+
   World* = ref object
     nextId: EntityId
     freeIds: seq[EntityId]
@@ -37,14 +42,15 @@ type
     idIndexMap: Table[EntityId, Entity]
     components: Table[string, AbstractComponent]
     resources: Table[string, AbstractResource]
+    events: Table[string, AbstractEvent]
     systems, startupSystems, terminateSystems: seq[System]
 
-  Query = proc(entity: Entity): bool {.raises: [KeyError], gcsafe.}
+  Query = proc(entity: Entity): bool {.raises: [KeyError].}
 
   Process = proc(
       entities: seq[Entity],
       commands: Commands
-  ) {.raises: [Exception], gcsafe.}
+  ) {.raises: [Exception].}
 
   System* = ref object
     targetedEntities: seq[Entity]
@@ -175,6 +181,23 @@ proc hasResource*(world: World, T: typedesc): bool =
 
 proc hasResource*(world: World, typeName: string): bool =
   return typeName in world.resources
+
+proc eventOf*(world: World, T: typedesc): Event[T] {.raises: [KeyError].} =
+  return cast[Event[T]](world.events[typetraits.name(T)])
+
+proc dispatchEvent*[T](world: World, data: T) {.raises: [KeyError].} =
+  let typeName = typetraits.name(T)
+  if typeName notin world.events:
+    world.events[typeName] = Event[T](queue: newSeq[T]())
+
+  world.eventOf(T).queue.add data
+
+proc receiveEvent*(world: World, T: typedesc): var seq[T] {.raises: [KeyError].} =
+  return world.eventOf(T).queue
+
+iterator items*[T](event: Event[T]): T =
+  for t in event.queue:
+    yield t
 
 proc componentOf(world: World, T: typedesc): Component[T] {.raises: [KeyError].} =
   return cast[Component[T]](world.components[typetraits.name(T)])
@@ -322,6 +345,15 @@ proc hasResource*(commands: Commands, T: typedesc): bool =
 
 proc hasResource*(commands: Commands, typeName: string): bool =
   return commands.world.hasResource(typeName)
+
+proc eventOf*(commands: Commands, T: typedesc): Event[T] {.raises: [KeyError].} =
+  return commands.world.eventOf(T)
+
+proc dispatchEvent*[T](commands: Commands, data: T) =
+  commands.world.dispatchEvent(data)
+
+proc receiveEvent*(commands: Commands, T: typedesc): var seq[T] {.raises: [KeyError].} =
+  return commands.world.receiveEvent(T)
 
 proc registerSystems*(commands: Commands, systems: varargs[System]) =
   commands.world.registerSystems(systems)
