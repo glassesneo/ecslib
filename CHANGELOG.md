@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `hasResource()` for `World` and `Commands` to get if a resource is added or not
 - `getEntity()` for `World` and `Commands` to get Entity by its id
 - `Resource[T]` argument for systems to specify the resources used in the system
+- `Event` type and procedures for operating events
+- `Event[T]` argument for systems to specify the event queue to receive
 
 ### Fixed
 - Fixed an issue on exporting systems
