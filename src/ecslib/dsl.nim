@@ -53,6 +53,7 @@ macro system*(theProc: untyped): untyped =
   var
     queryList: seq[Query]
     resourceAssignmentList: seq[NimNode]
+    eventAssignmentList: seq[NimNode]
 
   for query in queryParams[1..^1]:
     case query[1].kind
@@ -65,14 +66,20 @@ macro system*(theProc: untyped): untyped =
         queryList.add Query.new(procName, targets)
 
     of nnkBracketExpr:
-      if not (query[1][0].eqIdent"Resource" and query[1].len == 2):
+      if query[1].len != 2:
         error "Unsupported syntax", query[1][0]
 
       let instance = query[0]
-      let resource = query[1][1]
+      let queryType = query[1][1]
 
-      resourceAssignmentList.add quote do:
-        let `instance` = `commandsName`.getResource(`resource`)
+      case query[1][0].strVal
+      of "Resource":
+        resourceAssignmentList.add quote do:
+          let `instance` = `commandsName`.getResource(`queryType`)
+
+      of "Event":
+        eventAssignmentList.add quote do:
+          let `instance` = `commandsName`.receiveEvent(`queryType`)
 
     else:
       error "Unsupported syntax", query[1]
@@ -88,6 +95,9 @@ macro system*(theProc: untyped): untyped =
   let processNode = theProc.body
 
   for assignment in resourceAssignmentList.reversed:
+    processNode.insert 0, assignment
+
+  for assignment in eventAssignmentList.reversed:
     processNode.insert 0, assignment
 
   let systemName = theProc[0]

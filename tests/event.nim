@@ -9,8 +9,7 @@ type
   SomeEvent = ref object
     id: int
 
-proc readEvent*() {.system.} =
-  let eventQueue = commands.receiveEvent(SomeEvent)
+proc readEvent*(eventQueue: Event[SomeEvent]) {.system.} =
   for e in eventQueue:
     echo e.id
 
