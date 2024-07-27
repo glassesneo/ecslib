@@ -21,8 +21,7 @@ world.addEvent(SomeEvent)
 world.dispatchEvent(SomeEvent(id: 0))
 world.dispatchEvent(SomeEvent(id: 1))
 world.dispatchEvent(SomeEvent(id: 2))
+world.dispatchEvent(SomeEvent(id: 3))
 
 world.runSystems()
-
-world.releaseEventQueue()
 
