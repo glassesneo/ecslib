@@ -348,7 +348,7 @@ proc hasResource*(commands: Commands, typeName: string): bool =
 proc eventOf*(commands: Commands, T: typedesc): Event[T] {.raises: [KeyError].} =
   return commands.world.eventOf(T)
 
-proc dispatchEvent*[T](commands: Commands, data: T) =
+proc dispatchEvent*[T](commands: Commands, data: T) {.raises: [KeyError].} =
   commands.world.dispatchEvent(data)
 
 proc receiveEvent*(commands: Commands, T: typedesc): seq[T] {.raises: [KeyError].} =
