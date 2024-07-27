@@ -195,6 +195,9 @@ proc dispatchEvent*[T](world: World, data: T) {.raises: [KeyError].} =
 proc receiveEvent*(world: World, T: typedesc): seq[T] {.raises: [KeyError].} =
   return world.eventOf(T).queue
 
+proc releaseEventQueue*(world: World) =
+  world.events = initTable[string, AbstractEvent]()
+
 proc componentOf(world: World, T: typedesc): Component[T] {.raises: [KeyError].} =
   return cast[Component[T]](world.components[typetraits.name(T)])
 

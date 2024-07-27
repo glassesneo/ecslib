@@ -22,3 +22,5 @@ world.dispatchEvent(SomeEvent(id: 2))
 world.registerSystems(readEvent)
 world.runSystems()
 
+world.releaseEventQueue()
+
