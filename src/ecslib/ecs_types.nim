@@ -192,12 +192,8 @@ proc dispatchEvent*[T](world: World, data: T) {.raises: [KeyError].} =
 
   world.eventOf(T).queue.add data
 
-proc receiveEvent*(world: World, T: typedesc): var seq[T] {.raises: [KeyError].} =
+proc receiveEvent*(world: World, T: typedesc): seq[T] {.raises: [KeyError].} =
   return world.eventOf(T).queue
-
-iterator items*[T](event: Event[T]): T =
-  for t in event.queue:
-    yield t
 
 proc componentOf(world: World, T: typedesc): Component[T] {.raises: [KeyError].} =
   return cast[Component[T]](world.components[typetraits.name(T)])
@@ -352,7 +348,7 @@ proc eventOf*(commands: Commands, T: typedesc): Event[T] {.raises: [KeyError].} 
 proc dispatchEvent*[T](commands: Commands, data: T) =
   commands.world.dispatchEvent(data)
 
-proc receiveEvent*(commands: Commands, T: typedesc): var seq[T] {.raises: [KeyError].} =
+proc receiveEvent*(commands: Commands, T: typedesc): seq[T] {.raises: [KeyError].} =
   return commands.world.receiveEvent(T)
 
 proc registerSystems*(commands: Commands, systems: varargs[System]) =
