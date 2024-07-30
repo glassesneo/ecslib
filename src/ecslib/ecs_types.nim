@@ -33,7 +33,7 @@ type
 
   Event*[T] = ref object of AbstractEvent
     queue: seq[T]
-    recieved: bool
+    received: bool
 
   World* = ref object
     nextId: EntityId
