@@ -30,10 +30,10 @@ type
     data: T
 
   AbstractEvent* = ref object of RootObj
+    received*: bool
 
   Event*[T] = ref object of AbstractEvent
     queue: seq[T]
-    received: bool
 
   World* = ref object
     nextId: EntityId
@@ -43,7 +43,7 @@ type
     idIndexMap: Table[EntityId, Entity]
     components: Table[string, AbstractComponent]
     resources: Table[string, AbstractResource]
-    events: Table[string, AbstractEvent]
+    events*: Table[string, AbstractEvent]
     systems, startupSystems, terminateSystems: seq[System]
 
   Query = proc(entity: Entity): bool {.raises: [KeyError].}
