@@ -33,6 +33,7 @@ type
 
   Event*[T] = ref object of AbstractEvent
     queue: seq[T]
+    recieved: bool
 
   World* = ref object
     nextId: EntityId
@@ -186,7 +187,10 @@ proc eventOf*(world: World, T: typedesc): Event[T] {.raises: [KeyError].} =
   return cast[Event[T]](world.events[typetraits.name(T)])
 
 proc addEvent*(world: World, T: typedesc) =
-  world.events[typetraits.name(T)] = Event[T](queue: newSeq[T]())
+  world.events[typetraits.name(T)] = Event[T](
+    queue: newSeq[T](),
+    received: false
+  )
 
 proc dispatchEvent*[T](world: World, data: T) {.raises: [KeyError].} =
   world.eventOf(T).queue.add data
@@ -198,6 +202,9 @@ iterator items*[T](event: Event[T]): T =
   for v in event.queue:
     yield v
 
+  event.received = true
+
+proc clearEventQueue*[T](event: Event[T]) =
   event.queue = @[]
 
 proc componentOf(world: World, T: typedesc): Component[T] {.raises: [KeyError].} =
