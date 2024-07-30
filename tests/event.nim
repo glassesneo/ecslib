@@ -3,6 +3,7 @@ discard """
 """
 
 import
+  std/tables,
   ../src/ecslib
 
 type
@@ -10,8 +11,9 @@ type
     id: int
 
 proc readEvent*(eventQueue: Event[SomeEvent]) {.system.} =
-  for e in eventQueue:
-    echo e.id
+  withEvent(eventQueue):
+    for e in eventQueue:
+      echo e.id
 
 let world = World.new()
 

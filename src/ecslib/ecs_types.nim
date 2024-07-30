@@ -1,4 +1,5 @@
 {.push raises: [].}
+{.experimental: "dynamicBindSym".}
 
 import
   std/[
@@ -196,16 +197,22 @@ proc dispatchEvent*[T](world: World, data: T) {.raises: [KeyError].} =
   world.eventOf(T).queue.add data
 
 proc receiveEvent*(world: World, T: typedesc): Event[T] {.raises: [KeyError].} =
-  return world.eventOf(T)
+  result = world.eventOf(T)
+  result.received = true
 
 iterator items*[T](event: Event[T]): T =
   for v in event.queue:
     yield v
 
-  event.received = true
-
-proc clearEventQueue*[T](event: Event[T]) =
+proc clearQueue*[T](event: Event[T]) =
   event.queue = @[]
+
+macro withEvent*(event, body: untyped): untyped =
+  result = quote do:
+    block:
+      `body`
+    if `event`.received:
+      `event`.clearQueue()
 
 proc componentOf(world: World, T: typedesc): Component[T] {.raises: [KeyError].} =
   return cast[Component[T]](world.components[typetraits.name(T)])
