@@ -1,5 +1,4 @@
 {.push raises: [].}
-{.experimental: "dynamicBindSym".}
 
 import
   std/[
