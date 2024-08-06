@@ -11,6 +11,17 @@ import
   ]
 
 type
+  World* = ref object
+    nextId: EntityId
+    freeIds: seq[EntityId]
+    commands: Commands
+    entities: seq[Entity]
+    idIndexMap: Table[EntityId, Entity]
+    components: Table[string, AbstractComponent]
+    resources: Table[string, AbstractResource]
+    events*: Table[string, AbstractEvent]
+    systems, startupSystems, terminateSystems: seq[System]
+
   EntityId* = uint
 
   Entity* = ref object
@@ -35,16 +46,10 @@ type
   Event*[T] = ref object of AbstractEvent
     queue: seq[T]
 
-  World* = ref object
-    nextId: EntityId
-    freeIds: seq[EntityId]
-    commands: Commands
-    entities: seq[Entity]
-    idIndexMap: Table[EntityId, Entity]
-    components: Table[string, AbstractComponent]
-    resources: Table[string, AbstractResource]
-    events*: Table[string, AbstractEvent]
-    systems, startupSystems, terminateSystems: seq[System]
+  System* = ref object
+    targetedEntities: seq[Entity]
+    query: Query
+    process: Process
 
   Query = proc(entity: Entity): bool {.raises: [KeyError].}
 
@@ -53,36 +58,43 @@ type
       commands: Commands
   ) {.raises: [Exception].}
 
-  System* = ref object
-    targetedEntities: seq[Entity]
-    query: Query
-    process: Process
-
   Commands* = ref object
     world: World
 
 const InvalidEntityId*: EntityId = 0
 
-proc hash*(entity: Entity): Hash {.inline.} =
-  entity.id.hash()
+proc new*(_: type Commands, world: World): Commands =
+  return Commands(world: world)
 
-proc new[T](_: type Component[T]): Component[T] = Component[T]()
+proc new*(_: type World): World =
+  result = World(nextId: 1)
+  result.commands = Commands.new(result)
 
 proc new(_: type Entity, id: uint, world: World): Entity =
   return Entity(id: id, world: world)
 
-proc create*(world: World): Entity {.discardable.} =
-  if world.freeIds.len == 0:
-    result = Entity.new(world.nextId, world)
-    world.nextId += 1
-  else:
-    result = Entity.new(world.freeIds.pop, world)
+proc new[T](_: type Component[T]): Component[T] = Component[T]()
 
-  world.entities.add result
-  world.idIndexMap[result.id] = result
+proc new*(_: type System, query: Query, process: Process): System =
+  return System(
+    query: query,
+    process: process,
+  )
 
-proc getEntity*(world: World, id: EntityId): Entity {.raises: [KeyError].} =
-  return world.idIndexMap[id]
+proc resourceOf(world: World, T: typedesc): Resource[T] {.raises: [KeyError].} =
+  return cast[Resource[T]](world.resources[typetraits.name(T)])
+
+proc componentOf(world: World, T: typedesc): Component[T] {.raises: [KeyError].} =
+  return cast[Component[T]](world.components[typetraits.name(T)])
+
+proc has(world: World, T: typedesc): bool =
+  return typetraits.name(T) in world.components
+
+proc has(world: World, typeName: string): bool =
+  return typeName in world.components
+
+proc hash*(entity: Entity): Hash {.inline.} =
+  entity.id.hash()
 
 proc `[]`[T](component: Component[T], entity: Entity): T {.raises: [KeyError].} =
   return component.storage[component.indexTable[entity]]
@@ -100,37 +112,66 @@ proc `[]=`[T](component: Component[T], entity: Entity, value: T) {.raises: [KeyE
   component.indexTable[entity] = component.storage.len
   component.storage.add(value)
 
-proc attachToEntity[T](
-    component: Component[T],
-    data: T,
-    entity: Entity
-) {.raises: [KeyError].} =
-  component[entity] = data
-
 proc has(component: AbstractComponent, entity: Entity): bool =
   return entity in component.indexTable
 
 proc deleteEntity(component: AbstractComponent, entity: Entity) =
   component.indexTable.del(entity)
 
-proc new*(_: type Commands, world: World): Commands =
-  return Commands(world: world)
+proc attachComponent[T](world: World, data: T, entity: Entity) {.raises: [KeyError].} =
+  if typetraits.name(T) notin world.components:
+    world.components[typetraits.name(T)] = Component[T].new()
 
-proc new*(_: type World): World =
-  result = World(nextId: 1)
-  result.commands = Commands.new(result)
+  world.componentOf(T)[entity] = data
+
+proc getComponent(world: World, T: typedesc, entity: Entity): T {.raises: [KeyError].} =
+  return world.componentOf(T)[entity]
+
+proc detachComponent(world: World, T: typedesc, entity: Entity) {.raises: [KeyError].} =
+  world.componentOf(T).deleteEntity(entity)
+
+proc deleteEntity(world: World, entity: Entity) =
+  world.idIndexMap.del(entity.id)
+  world.freeIds.add(entity.id)
+  for c in world.components.values:
+    c.deleteEntity(entity)
+
+proc updateTargets(system: System, world: World) {.raises: [KeyError].} =
+  system.targetedEntities = world.entities.filter(system.query)
+
+proc create*(world: World): Entity {.discardable.} =
+  if world.freeIds.len == 0:
+    result = Entity.new(world.nextId, world)
+    world.nextId += 1
+  else:
+    result = Entity.new(world.freeIds.pop, world)
+
+  world.entities.add result
+  world.idIndexMap[result.id] = result
 
 proc entities*(world: World): seq[Entity] =
-  world.entities
+  return world.entities
 
-proc resourceOf(world: World, T: typedesc): Resource[T] {.raises: [KeyError].} =
-  return cast[Resource[T]](world.resources[typetraits.name(T)])
+proc getEntity*(world: World, id: EntityId): Entity {.raises: [KeyError].} =
+  return world.idIndexMap[id]
+
+proc isInvalidEntity(world: World, entity: Entity): bool =
+  return entity.id notin world.freeIds
 
 proc addResource*[T](world: World, data: T) =
   world.resources[typetraits.name(T)] = Resource[T](data: data)
 
 proc getResource*(world: World, T: typedesc): T {.raises: [KeyError].} =
   return world.resourceOf(T).data
+
+proc deleteResource*(world: World, T: typedesc) =
+  world.resources.del(typetraits.name(T))
+
+proc hasResource*(world: World, T: typedesc): bool =
+  return typetraits.name(T) in world.resources
+
+proc hasResource*(world: World, typeName: string): bool =
+  return typeName in world.resources
 
 macro updateResource*(world: World; args: untyped): untyped =
   args.expectKind(nnkObjConstr)
@@ -153,36 +194,6 @@ macro updateResource*(world: World; args: untyped): untyped =
   for assignment in assignmentList:
     result[1].add assignment
 
-macro updateResource*(commands: Commands; args: untyped): untyped =
-  args.expectKind(nnkObjConstr)
-  let componentName = ident"component"
-  let T = args[0]
-  var assignmentList: seq[NimNode]
-
-  for node in args[1..^1]:
-    let
-      name = node[0]
-      value = node[1]
-
-    assignmentList.add quote do:
-      `componentName`.`name` = `value`
-
-  result = quote do:
-    block:
-      let `componentName` = `commands`.world.getResource(`T`)
-
-  for assignment in assignmentList:
-    result[1].add assignment
-
-proc deleteResource*(world: World, T: typedesc) =
-  world.resources.del(typetraits.name(T))
-
-proc hasResource*(world: World, T: typedesc): bool =
-  return typetraits.name(T) in world.resources
-
-proc hasResource*(world: World, typeName: string): bool =
-  return typeName in world.resources
-
 proc eventOf*(world: World, T: typedesc): Event[T] {.raises: [KeyError].} =
   return cast[Event[T]](world.events[typetraits.name(T)])
 
@@ -199,50 +210,6 @@ proc receiveEvent*(world: World, T: typedesc): Event[T] {.raises: [KeyError].} =
   result = world.eventOf(T)
   result.received = true
 
-iterator items*[T](event: Event[T]): T =
-  for v in event.queue:
-    yield v
-
-proc clearQueue*[T](event: Event[T]) =
-  event.queue = @[]
-
-macro withEvent*(event, body: untyped): untyped =
-  result = quote do:
-    block:
-      `body`
-    if `event`.received:
-      `event`.clearQueue()
-
-proc componentOf(world: World, T: typedesc): Component[T] {.raises: [KeyError].} =
-  return cast[Component[T]](world.components[typetraits.name(T)])
-
-proc has(world: World, T: typedesc): bool =
-  return typetraits.name(T) in world.components
-
-proc has(world: World, typeName: string): bool =
-  return typeName in world.components
-
-proc isInvalidEntity*(world: World, entity: Entity): bool =
-  return entity.id notin world.freeIds
-
-proc attachComponent[T](world: World, data: T, entity: Entity) {.raises: [KeyError].} =
-  if typetraits.name(T) notin world.components:
-    world.components[typetraits.name(T)] = Component[T].new()
-
-  world.componentOf(T).attachToEntity(data, entity)
-
-proc getComponent(world: World, T: typedesc, entity: Entity): T {.raises: [KeyError].} =
-  return world.componentOf(T)[entity]
-
-proc detachComponent(world: World, T: typedesc, entity: Entity) {.raises: [KeyError].} =
-  world.componentOf(T).deleteEntity(entity)
-
-proc deleteEntity(world: World, entity: Entity) =
-  world.idIndexMap.del(entity.id)
-  world.freeIds.add(entity.id)
-  for c in world.components.values:
-    c.deleteEntity(entity)
-
 proc id*(entity: Entity): EntityId =
   return entity.id
 
@@ -251,21 +218,6 @@ proc `$`*(entity: Entity): string =
 
 proc isValid*(entity: Entity): bool =
   entity.world.isInvalidEntity(entity)
-
-proc attach*[T](
-    entity: Entity,
-    data: T
-): Entity {.raises: [KeyError], discardable.} =
-  entity.world.attachComponent(data, entity)
-  return entity
-
-proc withBundle*(
-    entity: Entity,
-    bundle: tuple
-): Entity {.raises: [KeyError], discardable.} =
-  for c in bundle.fields:
-    entity.attach(c)
-  return entity
 
 proc has*(entity: Entity, T: typedesc): bool {.raises: [KeyError].} =
   return entity.world.has(T) and entity.world.componentOf(T).has(entity)
@@ -292,6 +244,21 @@ proc hasNone*(entity: Entity, typeNames: seq[string]): bool {.raises: [KeyError]
     return true
   return not entity.hasAny(typeNames)
 
+proc attach*[T](
+    entity: Entity,
+    data: T
+): Entity {.raises: [KeyError], discardable.} =
+  entity.world.attachComponent(data, entity)
+  return entity
+
+proc withBundle*(
+    entity: Entity,
+    bundle: tuple
+): Entity {.raises: [KeyError], discardable.} =
+  for c in bundle.fields:
+    entity.attach(c)
+  return entity
+
 proc get*(entity: Entity, T: typedesc): T {.raises: [KeyError].} =
   return entity.world.getComponent(T, entity)
 
@@ -307,15 +274,6 @@ proc detach*(entity: Entity, T: typedesc) {.raises: [KeyError].} =
 proc delete*(entity: Entity) =
   entity.world.deleteEntity(entity)
   entity.id = InvalidEntityId
-
-proc new*(_: type System, query: Query, process: Process): System =
-  return System(
-    query: query,
-    process: process,
-  )
-
-proc updateTargets(system: System, world: World) {.raises: [KeyError].} =
-  system.targetedEntities = world.entities.filter(system.query)
 
 proc update*(system: System, world: World) {.raises: [Exception].} =
   system.updateTargets(world)
@@ -342,6 +300,20 @@ proc runTerminateSystems*(world: World) {.raises: [Exception].} =
   for system in world.terminateSystems.reversed():
     system.update(world)
 
+iterator items*[T](event: Event[T]): T =
+  for v in event.queue:
+    yield v
+
+proc clearQueue*[T](event: Event[T]) =
+  event.queue = @[]
+
+macro withEvent*(event, body: untyped): untyped =
+  result = quote do:
+    block:
+      `body`
+    if `event`.received:
+      `event`.clearQueue()
+
 proc create*(commands: Commands): Entity {.discardable.} =
   return commands.world.create()
 
@@ -360,6 +332,30 @@ proc hasResource*(commands: Commands, T: typedesc): bool =
 proc hasResource*(commands: Commands, typeName: string): bool =
   return commands.world.hasResource(typeName)
 
+macro updateResource*(commands: Commands; args: untyped): untyped =
+  args.expectKind(nnkObjConstr)
+  let componentName = ident"component"
+  let T = args[0]
+  var assignmentList: seq[NimNode]
+
+  for node in args[1..^1]:
+    let
+      name = node[0]
+      value = node[1]
+
+    assignmentList.add quote do:
+      `componentName`.`name` = `value`
+
+  result = quote do:
+    block:
+      let `componentName` = `commands`.world.getResource(`T`)
+
+  for assignment in assignmentList:
+    result[1].add assignment
+
+proc registerSystems*(commands: Commands, systems: varargs[System]) =
+  commands.world.registerSystems(systems)
+
 proc eventOf*(commands: Commands, T: typedesc): Event[T] {.raises: [KeyError].} =
   return commands.world.eventOf(T)
 
@@ -368,7 +364,4 @@ proc dispatchEvent*[T](commands: Commands, data: T) {.raises: [KeyError].} =
 
 proc receiveEvent*(commands: Commands, T: typedesc): Event[T] {.raises: [KeyError].} =
   return commands.world.receiveEvent(T)
-
-proc registerSystems*(commands: Commands, systems: varargs[System]) =
-  commands.world.registerSystems(systems)
 
