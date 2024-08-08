@@ -56,7 +56,10 @@ proc moveSystem(All: [Position, Velocity]) {.system.} =
     pos.x += vel.x
     pos.y += vel.y
 
-proc showPositionSystem(All: [Position, Name], Any: [A, B]) {.system.} =
+proc showPositionSystem(
+    All: [Position, Velocity, Name],
+    Any: [A, B]
+) {.system.} =
   for pos, name in each(entities, [Position, Name]):
     echo "[", name.name, "]"
     echo "  x: ", pos.x

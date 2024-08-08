@@ -24,24 +24,16 @@ proc queryIntersection(
     world: NimNode,
     targets: seq[NimNode]
 ): NimNode {.compileTime.} =
-  result = targets.foldl(
-    infix(
-      world.entityIdSetNode(a),
-      "*",
-      world.entityIdSetNode(b),
-    )
+  result = targets.mapIt(world.entityIdSetNode(it)).foldl(
+    infix(a, "*", b)
   )
 
 proc queryUnion(
     world: NimNode,
     targets: seq[NimNode]
 ): NimNode {.compileTime.} =
-  result = targets.foldl(
-    infix(
-      world.entityIdSetNode(a),
-      "+",
-      world.entityIdSetNode(b),
-    )
+  result = targets.mapIt(world.entityIdSetNode(it)).foldl(
+    infix(a, "+", b)
   )
 
 macro system*(theProc: untyped): untyped =
