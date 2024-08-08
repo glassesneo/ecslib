@@ -13,10 +13,6 @@ type
     QAny = "Any"
     QNone = "None"
 
-  ComponentQuery = ref object
-    queryType: ComponentQueryType
-    queryNode: NimNode
-
 proc entityIdSetNode(world, T: NimNode): NimNode {.compileTime.} =
   return world.newDotExpr(ident"componentOf").newCall(T).newDotExpr(ident"entityIdSet")
 
@@ -61,7 +57,6 @@ macro system*(theProc: untyped): untyped =
     error "System can't return a value", queryParams[0]
 
   let
-    entityName = ident"entity"
     entitiesName = ident"entities"
     commandsName = ident"commands"
     worldName = ident"world"
@@ -80,6 +75,10 @@ macro system*(theProc: untyped): untyped =
     of nnkBracket:
       if query[1].len != 0:
         let queryType = parseEnum[ComponentQueryType](query[0].strVal)
+        if query[1].len == 1:
+          queryArray[queryType] = entityIdSetNode(worldName, query[1][0])
+          continue
+
         let targets = query[1][0..^1]
         case queryType
         of QAll:

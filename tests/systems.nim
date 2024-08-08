@@ -46,7 +46,9 @@ ball2
     Name(name: "ball2")
   )
 
-proc startup {.system.} =
+proc startup(All: [Name]) {.system.} =
+  for name in each(entities, [Name]):
+    echo name.name
   echo "=====Startup!====="
 
 proc moveSystem(All: [Position, Velocity]) {.system.} =
