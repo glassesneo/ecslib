@@ -22,13 +22,14 @@ type
     events*: Table[string, AbstractEvent]
     systems, startupSystems, terminateSystems: seq[System]
 
-  EntityId* = uint
+  EntityId* = uint16
 
   Entity* = ref object
     id: EntityId
     world*: World
 
   AbstractComponent* = ref object of RootObj
+    entityIdSet*: set[EntityId]
     indexTable: Table[Entity, int]
     freeIndex: seq[int]
 
@@ -51,7 +52,7 @@ type
     query: Query
     process: Process
 
-  Query = proc(entity: Entity): bool {.raises: [KeyError].}
+  Query = proc(world: World): set[EntityId] {.raises: [KeyError].}
 
   Process = proc(
       entities: seq[Entity],
@@ -70,7 +71,7 @@ proc new*(_: type World): World =
   result = World(nextId: 1)
   result.commands = Commands.new(result)
 
-proc new(_: type Entity, id: uint, world: World): Entity =
+proc new(_: type Entity, id: EntityId, world: World): Entity =
   return Entity(id: id, world: world)
 
 proc new[T](_: type Component[T]): Component[T] = Component[T]()
@@ -84,7 +85,7 @@ proc new*(_: type System, query: Query, process: Process): System =
 proc resourceOf(world: World, T: typedesc): Resource[T] {.raises: [KeyError].} =
   return cast[Resource[T]](world.resources[typetraits.name(T)])
 
-proc componentOf(world: World, T: typedesc): Component[T] {.raises: [KeyError].} =
+proc componentOf*(world: World, T: typedesc): Component[T] {.raises: [KeyError].} =
   return cast[Component[T]](world.components[typetraits.name(T)])
 
 proc has(world: World, T: typedesc): bool =
@@ -96,27 +97,31 @@ proc has(world: World, typeName: string): bool =
 proc hash*(entity: Entity): Hash {.inline.} =
   entity.id.hash()
 
+proc has(component: AbstractComponent, entity: Entity): bool =
+  return entity.id in component.entityIdSet
+
 proc `[]`[T](component: Component[T], entity: Entity): T {.raises: [KeyError].} =
   return component.storage[component.indexTable[entity]]
 
 proc `[]=`[T](component: Component[T], entity: Entity, value: T) {.raises: [KeyError].} =
-  if entity in component.indexTable:
+  if component.has(entity):
     component.storage[component.indexTable[entity]] = value
     return
 
   if component.freeIndex.len > 0:
-    component.indexTable[entity] = component.freeIndex.pop
-    component.storage[component.indexTable[entity]] = value
+    let index = component.freeIndex.pop()
+    component.indexTable[entity] = index
+    component.entityIdSet.incl entity.id
+    component.storage[index] = value
     return
 
   component.indexTable[entity] = component.storage.len
+  component.entityIdSet.incl entity.id
   component.storage.add(value)
-
-proc has(component: AbstractComponent, entity: Entity): bool =
-  return entity in component.indexTable
 
 proc deleteEntity(component: AbstractComponent, entity: Entity) =
   component.indexTable.del(entity)
+  component.entityIdSet.excl entity.id
 
 proc attachComponent[T](world: World, data: T, entity: Entity) {.raises: [KeyError].} =
   if typetraits.name(T) notin world.components:
@@ -137,7 +142,11 @@ proc deleteEntity(world: World, entity: Entity) =
     c.deleteEntity(entity)
 
 proc updateTargets(system: System, world: World) {.raises: [KeyError].} =
-  system.targetedEntities = world.entities.filter(system.query)
+  system.targetedEntities = system.query(world).toSeq().mapIt(world.idIndexMap[it])
+
+proc update(system: System, world: World) {.raises: [Exception].} =
+  system.updateTargets(world)
+  system.process(system.targetedEntities, world.commands)
 
 proc create*(world: World): Entity {.discardable.} =
   if world.freeIds.len == 0:
@@ -274,10 +283,6 @@ proc detach*(entity: Entity, T: typedesc) {.raises: [KeyError].} =
 proc delete*(entity: Entity) =
   entity.world.deleteEntity(entity)
   entity.id = InvalidEntityId
-
-proc update*(system: System, world: World) {.raises: [Exception].} =
-  system.updateTargets(world)
-  system.process(system.targetedEntities, world.commands)
 
 proc registerSystems*(world: World, systems: varargs[System]) =
   world.systems.add systems

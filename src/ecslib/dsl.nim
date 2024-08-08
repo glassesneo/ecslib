@@ -1,37 +1,52 @@
 import
-  std/[algorithm, macros, sequtils]
+  std/[
+    algorithm,
+    macros,
+    sequtils,
+    setutils,
+    strutils
+  ]
 
 type
-  Query = ref object
-    procName: string
-    targets: seq[string]
+  ComponentQueryType = enum
+    QAll = "All"
+    QAny = "Any"
+    QNone = "None"
 
-proc new(
-    _: type Query;
-    procName: string;
-    target: seq[string]
-): Query {.compileTime.} =
-  return Query(
-    procName: procName,
-    targets: target
+  ComponentQuery = ref object
+    queryType: ComponentQueryType
+    queryNode: NimNode
+
+proc entityIdSetNode(world, T: NimNode): NimNode {.compileTime.} =
+  return world.newDotExpr(ident"componentOf").newCall(T).newDotExpr(ident"entityIdSet")
+
+proc fullSetNode(world: NimNode): NimNode {.compileTime.} =
+  result = quote do:
+    EntityId.fullSet()
+
+proc queryIntersection(
+    world: NimNode,
+    targets: seq[NimNode]
+): NimNode {.compileTime.} =
+  result = targets.foldl(
+    infix(
+      world.entityIdSetNode(a),
+      "*",
+      world.entityIdSetNode(b),
+    )
   )
 
-proc toQueryProc(query: Query; entityName: NimNode): NimNode {.compileTime.} =
-  let procName = query.procName.ident
-  let targets = query.targets.newLit()
-  result = quote do:
-    `entityName`.`procName`(`targets`)
-
-proc mapToQueryProcName(queryNode: NimNode): string =
-  case queryNode[0].strVal
-  of "All":
-    return "hasAll"
-  of "Any":
-    return "hasAny"
-  of "None":
-    return "hasNone"
-  else:
-    error "Unsupported query", queryNode[0]
+proc queryUnion(
+    world: NimNode,
+    targets: seq[NimNode]
+): NimNode {.compileTime.} =
+  result = targets.foldl(
+    infix(
+      world.entityIdSetNode(a),
+      "+",
+      world.entityIdSetNode(b),
+    )
+  )
 
 macro system*(theProc: untyped): untyped =
   let queryParams = theProc.params
@@ -49,21 +64,28 @@ macro system*(theProc: untyped): untyped =
     entityName = ident"entity"
     entitiesName = ident"entities"
     commandsName = ident"commands"
+    worldName = ident"world"
 
   var
-    queryList: seq[Query]
+    queryArray: array[ComponentQueryType, NimNode] = [
+      fullSetNode(worldName),
+      fullSetNode(worldName),
+      nnkCurly.newNimNode()
+    ]
     resourceAssignmentList: seq[NimNode]
     eventAssignmentList: seq[NimNode]
 
   for query in queryParams[1..^1]:
     case query[1].kind
     of nnkBracket:
-      var targets: seq[string]
-      for t in query[1]:
-        targets.add t.strVal
-      if targets.len != 0:
-        let procName = mapToQueryProcName(query)
-        queryList.add Query.new(procName, targets)
+      if query[1].len != 0:
+        let queryType = parseEnum[ComponentQueryType](query[0].strVal)
+        let targets = query[1][0..^1]
+        case queryType
+        of QAll:
+          queryArray[queryType] = queryIntersection(worldName, targets)
+        of QAny, QNone:
+          queryArray[queryType] = queryUnion(worldName, targets)
 
     of nnkBracketExpr:
       if query[1].len != 2:
@@ -85,12 +107,13 @@ macro system*(theProc: untyped): untyped =
       error "Unsupported syntax", query[1]
 
   let queriesNode = block:
-    if queryList.len == 0:
-      newLit(true)
-    else:
-      queryList
-        .map(proc(q: Query): NimNode = q.toQueryProc(ident"entity"))
-        .foldl(infix(a, "and", b))
+    let
+      qAll = queryArray[QAll]
+      qAny = queryArray[QAny]
+      qNone = queryArray[QNone]
+
+    quote do:
+      `qAll` * `qAny` * `qNone`
 
   let processNode = theProc.body
 
@@ -105,8 +128,8 @@ macro system*(theProc: untyped): untyped =
   result = quote do:
     let `systemName` = System.new(
       query = proc(
-          `entityName`: Entity
-      ): bool = `queriesNode`,
+          `worldName`: World
+      ): set[EntityId] = `queriesNode`,
       process = proc(
         `entitiesName`: seq[Entity];
         `commandsName`: Commands
