@@ -83,10 +83,10 @@ proc new*(_: type System, query: Query, process: Process): System =
   )
 
 proc resourceOf(world: World, T: typedesc): Resource[T] {.raises: [KeyError].} =
-  return cast[Resource[T]](world.resources[typetraits.name(T)])
+  return cast[Resource[T]](world.resources.getOrDefault(typetraits.name(T)))
 
 proc componentOf*(world: World, T: typedesc): Component[T] {.raises: [KeyError].} =
-  return cast[Component[T]](world.components[typetraits.name(T)])
+  return cast[Component[T]](world.components.getOrDefault(typetraits.name(T)))
 
 proc has(world: World, T: typedesc): bool =
   return typetraits.name(T) in world.components
@@ -204,7 +204,7 @@ macro updateResource*(world: World; args: untyped): untyped =
     result[1].add assignment
 
 proc eventOf*(world: World, T: typedesc): Event[T] {.raises: [KeyError].} =
-  return cast[Event[T]](world.events[typetraits.name(T)])
+  return cast[Event[T]](world.events.getOrDefault(typetraits.name(T)))
 
 proc addEvent*(world: World, T: typedesc) =
   world.events[typetraits.name(T)] = Event[T](
