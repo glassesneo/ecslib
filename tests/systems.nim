@@ -18,6 +18,31 @@ type
   Name = ref object
     name: string
 
+proc startup(All: [Name]) {.system.} =
+  for name in each(entities, [Name]):
+    echo name.name
+  echo "=====Startup!====="
+
+proc moveSystem(All: [Position, Velocity]) {.system.} =
+  for pos, vel in each(entities, [Position, Velocity]):
+    pos.x += vel.x
+    pos.y += vel.y
+
+proc showPositionSystem(
+    All: [Position, Velocity, Name],
+    Any: [A, B]
+) {.system.} =
+  for pos, name in each(entities, [Position, Name]):
+    echo "[", name.name, "]"
+    echo "  x: ", pos.x
+    echo "  y: ", pos.y
+
+proc doNothing*() {.system.} =
+  discard
+
+proc terminate {.system.} =
+  echo "=====Terminate!====="
+
 let world = World.new()
 
 let
@@ -46,31 +71,6 @@ ball2
     Name(name: "ball2")
   )
 
-proc startup(All: [Name]) {.system.} =
-  for name in each(entities, [Name]):
-    echo name.name
-  echo "=====Startup!====="
-
-proc moveSystem(All: [Position, Velocity]) {.system.} =
-  for pos, vel in each(entities, [Position, Velocity]):
-    pos.x += vel.x
-    pos.y += vel.y
-
-proc showPositionSystem(
-    All: [Position, Velocity, Name],
-    Any: [A, B]
-) {.system.} =
-  for pos, name in each(entities, [Position, Name]):
-    echo "[", name.name, "]"
-    echo "  x: ", pos.x
-    echo "  y: ", pos.y
-
-proc doNothing*() {.system.} =
-  discard
-
-proc terminate {.system.} =
-  echo "=====Terminate!====="
-
 world.registerStartupSystems(startup)
 world.registerSystems(moveSystem, showPositionSystem, doNothing)
 world.registerTerminateSystems(terminate)
@@ -80,3 +80,4 @@ if isMainModule:
   for i in 0..<10:
     world.runSystems()
   world.runTerminateSystems()
+

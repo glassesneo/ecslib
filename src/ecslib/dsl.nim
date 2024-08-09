@@ -18,7 +18,7 @@ proc entityIdSetNode(world, T: NimNode): NimNode {.compileTime.} =
 
 proc fullSetNode(world: NimNode): NimNode {.compileTime.} =
   result = quote do:
-    EntityId.fullSet()
+    world.fullEntityIdSet
 
 proc queryIntersection(
     world: NimNode,
@@ -104,7 +104,7 @@ macro system*(theProc: untyped): untyped =
       qNone = queryArray[QNone]
 
     quote do:
-      `qAll` * `qAny` * `qNone`
+      `qAll` * `qAny` - `qNone`
 
   let processNode = theProc.body
 

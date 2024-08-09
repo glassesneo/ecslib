@@ -6,6 +6,7 @@ import
     hashes,
     macros,
     sequtils,
+    setutils,
     tables,
     typetraits
   ]
@@ -142,7 +143,7 @@ proc deleteEntity(world: World, entity: Entity) =
     c.deleteEntity(entity)
 
 proc updateTargets(system: System, world: World) {.raises: [KeyError].} =
-  system.targetedEntities = system.query(world).toSeq().mapIt(world.idIndexMap[it])
+  system.targetedEntities = system.query(world).mapIt(world.idIndexMap[it])
 
 proc update(system: System, world: World) {.raises: [Exception].} =
   system.updateTargets(world)
@@ -160,6 +161,9 @@ proc create*(world: World): Entity {.discardable.} =
 
 proc entities*(world: World): seq[Entity] =
   return world.entities
+
+proc fullEntityIdSet*(world: World): set[EntityId] =
+  return world.entities.mapIt(it.id).toSet()
 
 proc getEntity*(world: World, id: EntityId): Entity {.raises: [KeyError].} =
   return world.idIndexMap[id]
