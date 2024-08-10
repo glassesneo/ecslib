@@ -149,7 +149,8 @@ proc deleteEntity(world: World, entity: Entity) =
     c.deleteEntity(entity)
 
 proc updateTargets(system: System, world: World) {.raises: [KeyError].} =
-  let queriedSet = system.query(world)
+  var queriedSet = system.query(world)
+  queriedSet.excl InvalidEntityId
   system.targetedEntities = queriedSet.mapIt(world.idIndexMap[it])
 
 proc update(system: System, world: World) {.raises: [Exception].} =
