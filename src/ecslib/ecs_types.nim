@@ -101,7 +101,7 @@ proc hash*(entity: Entity): Hash {.inline.} =
 proc has(component: AbstractComponent, entity: Entity): bool =
   return entity.id in component.entityIdSet
 
-proc `()`[T](component: Component[T], entity: Entity): T {.raises: [KeyError].} =
+proc `[]`[T](component: Component[T], entity: Entity): T {.raises: [KeyError].} =
   return component.storage[component.indexTable[entity]]
 
 proc `[]=`[T](component: Component[T], entity: Entity, value: T) {.raises: [KeyError].} =
