@@ -14,11 +14,11 @@ type
     QNone = "None"
 
 proc entityIdSetNode(world, T: NimNode): NimNode {.compileTime.} =
-  return world.newDotExpr(ident"componentOf").newCall(T).newDotExpr(ident"entityIdSet")
+  return quote do: `world`.getOrEmpty(`T`)
 
 proc fullSetNode(world: NimNode): NimNode {.compileTime.} =
   result = quote do:
-    world.fullEntityIdSet
+    `world`.fullEntityIdSet
 
 proc queryIntersection(
     world: NimNode,

@@ -14,6 +14,7 @@ type
 
   A = ref object
   B = ref object
+  C = ref object
 
   Name = ref object
     name: string
@@ -23,7 +24,7 @@ proc startup(All: [Name]) {.system.} =
     echo name.name
   echo "=====Startup!====="
 
-proc moveSystem(All: [Position, Velocity]) {.system.} =
+proc moveSystem(All: [Position, Velocity, C]) {.system.} =
   for pos, vel in each(entities, [Position, Velocity]):
     pos.x += vel.x
     pos.y += vel.y

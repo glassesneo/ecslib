@@ -84,16 +84,22 @@ proc new*(_: type System, query: Query, process: Process): System =
   )
 
 proc resourceOf(world: World, T: typedesc): Resource[T] {.raises: [KeyError].} =
-  return cast[Resource[T]](world.resources.getOrDefault(typetraits.name(T)))
+  return cast[Resource[T]](world.resources[typetraits.name(T)])
 
 proc componentOf*(world: World, T: typedesc): Component[T] {.raises: [KeyError].} =
-  return cast[Component[T]](world.components.getOrDefault(typetraits.name(T)))
+  return cast[Component[T]](world.components[typetraits.name(T)])
 
 proc has(world: World, T: typedesc): bool =
   return typetraits.name(T) in world.components
 
 proc has(world: World, typeName: string): bool =
   return typeName in world.components
+
+proc getOrEmpty*(world: World, T: typedesc): set[EntityId] {.raises: [KeyError].} =
+  return if world.has(T):
+    world.componentOf(T).entityIdSet
+  else:
+    {}
 
 proc hash*(entity: Entity): Hash {.inline.} =
   entity.id.hash()
@@ -143,7 +149,8 @@ proc deleteEntity(world: World, entity: Entity) =
     c.deleteEntity(entity)
 
 proc updateTargets(system: System, world: World) {.raises: [KeyError].} =
-  system.targetedEntities = system.query(world).mapIt(world.idIndexMap[it])
+  let queriedSet = system.query(world)
+  system.targetedEntities = queriedSet.mapIt(world.idIndexMap[it])
 
 proc update(system: System, world: World) {.raises: [Exception].} =
   system.updateTargets(world)
@@ -208,7 +215,7 @@ macro updateResource*(world: World; args: untyped): untyped =
     result[1].add assignment
 
 proc eventOf*(world: World, T: typedesc): Event[T] {.raises: [KeyError].} =
-  return cast[Event[T]](world.events.getOrDefault(typetraits.name(T)))
+  return cast[Event[T]](world.events[typetraits.name(T)])
 
 proc addEvent*(world: World, T: typedesc) =
   world.events[typetraits.name(T)] = Event[T](
