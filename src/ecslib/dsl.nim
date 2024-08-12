@@ -2,10 +2,11 @@ import
   std/[
     algorithm,
     macros,
+    macrocache,
     sequtils,
-    setutils,
     strutils
-  ]
+  ],
+  ecs_types
 
 type
   ComponentQueryType = enum
@@ -13,28 +14,12 @@ type
     QAny = "Any"
     QNone = "None"
 
-proc entityIdSetNode(world, T: NimNode): NimNode {.compileTime.} =
-  return quote do: `world`.getOrEmpty(`T`)
-
-proc fullSetNode(world: NimNode): NimNode {.compileTime.} =
-  result = quote do:
-    `world`.fullEntityIdSet
-
-proc queryIntersection(
-    world: NimNode,
-    targets: seq[NimNode]
-): NimNode {.compileTime.} =
-  result = targets.mapIt(world.entityIdSetNode(it)).foldl(
-    infix(a, "*", b)
-  )
-
-proc queryUnion(
-    world: NimNode,
-    targets: seq[NimNode]
-): NimNode {.compileTime.} =
-  result = targets.mapIt(world.entityIdSetNode(it)).foldl(
-    infix(a, "+", b)
-  )
+template genSystemProc(name, commands, entities, process) =
+  proc name(
+      commands: Commands,
+      entities: seq[Entity]
+  ) =
+    process
 
 macro system*(theProc: untyped): untyped =
   let queryParams = theProc.params
@@ -51,14 +36,13 @@ macro system*(theProc: untyped): untyped =
   let
     entitiesName = ident"entities"
     commandsName = ident"commands"
-    worldName = ident"world"
+    specNode = nnkTupleConstr.newTree(
+      newColonExpr(ident"qAll", quote do: @[]),
+      newColonExpr(ident"qAny", quote do: @[]),
+      newColonExpr(ident"qNone", quote do: @[]),
+    )
 
   var
-    queryArray: array[ComponentQueryType, NimNode] = [
-      fullSetNode(worldName),
-      fullSetNode(worldName),
-      nnkCurly.newNimNode()
-    ]
     resourceAssignmentList: seq[NimNode]
     eventAssignmentList: seq[NimNode]
 
@@ -67,16 +51,16 @@ macro system*(theProc: untyped): untyped =
     of nnkBracket:
       if query[1].len != 0:
         let queryType = parseEnum[ComponentQueryType](query[0].strVal)
-        if query[1].len == 1:
-          queryArray[queryType] = entityIdSetNode(worldName, query[1][0])
-          continue
 
-        let targets = query[1][0..^1]
+        let targetsLit = query[1].mapIt(it.strVal).newLit()
+
         case queryType
         of QAll:
-          queryArray[queryType] = queryIntersection(worldName, targets)
-        of QAny, QNone:
-          queryArray[queryType] = queryUnion(worldName, targets)
+          specNode[0] = newColonExpr(ident"qAll", targetsLit)
+        of QAny:
+          specNode[1] = newColonExpr(ident"qAny", targetsLit)
+        of QNone:
+          specNode[2] = newColonExpr(ident"qNone", targetsLit)
 
     of nnkBracketExpr:
       if query[1].len != 2:
@@ -97,15 +81,6 @@ macro system*(theProc: untyped): untyped =
     else:
       error "Unsupported syntax", query[1]
 
-  let queriesNode = block:
-    let
-      qAll = queryArray[QAll]
-      qAny = queryArray[QAny]
-      qNone = queryArray[QNone]
-
-    quote do:
-      `qAll` * `qAny` - `qNone`
-
   let processNode = theProc.body
 
   for assignment in resourceAssignmentList.reversed:
@@ -116,16 +91,12 @@ macro system*(theProc: untyped): untyped =
 
   let systemName = theProc[0]
 
-  result = quote do:
-    let `systemName` = System.new(
-      query = proc(
-          `worldName`: World
-      ): set[EntityId] = `queriesNode`,
-      process = proc(
-        `entitiesName`: seq[Entity];
-        `commandsName`: Commands
-      ) = `processNode`,
-    )
+  let systemNameString = theProc.name.strVal
+
+  result = getAst genSystemProc(systemName, commandsName, entitiesName, processNode)
+
+  specTable[systemNameString] = specNode
+  systemTable[systemNameString] = result
 
 macro each*(loop: ForLoopStmt): untyped =
   let

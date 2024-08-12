@@ -2,9 +2,10 @@
 
 import
   std/[
-    algorithm,
+    critbits,
     hashes,
     macros,
+    macrocache,
     sequtils,
     setutils,
     tables,
@@ -21,7 +22,8 @@ type
     components: Table[string, AbstractComponent]
     resources: Table[string, AbstractResource]
     events*: Table[string, AbstractEvent]
-    systems, startupSystems, terminateSystems: seq[System]
+    systems, startupSystems, terminateSystems: OrderedTable[string, System]
+    systemSpecList: CritBitTree[SystemSpec]
 
   EntityId* = uint16
 
@@ -48,20 +50,17 @@ type
   Event*[T] = ref object of AbstractEvent
     queue: seq[T]
 
-  System* = ref object
-    targetedEntities: seq[Entity]
-    query: Query
-    process: Process
+  System* = proc(commands: Commands, entities: seq[Entity]) {.nimcall.}
 
-  Query = proc(world: World): set[EntityId] {.raises: [KeyError].}
-
-  Process = proc(
-      entities: seq[Entity],
-      commands: Commands
-  ) {.raises: [Exception].}
+  SystemSpec* = tuple
+    qAll, qAny, qNone: seq[string]
 
   Commands* = ref object
     world: World
+
+const systemTable* = CacheTable"systemTable"
+
+const specTable* = CacheTable"specTable"
 
 const InvalidEntityId*: EntityId = 0
 
@@ -77,12 +76,6 @@ proc new(_: type Entity, id: EntityId, world: World): Entity =
 
 proc new[T](_: type Component[T]): Component[T] = Component[T]()
 
-proc new*(_: type System, query: Query, process: Process): System =
-  return System(
-    query: query,
-    process: process,
-  )
-
 proc resourceOf(world: World, T: typedesc): Resource[T] {.raises: [KeyError].} =
   return cast[Resource[T]](world.resources[typetraits.name(T)])
 
@@ -95,9 +88,9 @@ proc has(world: World, T: typedesc): bool =
 proc has(world: World, typeName: string): bool =
   return typeName in world.components
 
-proc getOrEmpty*(world: World, T: typedesc): set[EntityId] {.raises: [KeyError].} =
+proc getOrEmpty*(world: World, T: string): set[EntityId] {.raises: [KeyError].} =
   return if world.has(T):
-    world.componentOf(T).entityIdSet
+    world.components[T].entityIdSet
   else:
     {}
 
@@ -148,14 +141,50 @@ proc deleteEntity(world: World, entity: Entity) =
   for c in world.components.values:
     c.deleteEntity(entity)
 
-proc updateTargets(system: System, world: World) {.raises: [KeyError].} =
-  var queriedSet = system.query(world)
-  queriedSet.excl InvalidEntityId
-  system.targetedEntities = queriedSet.mapIt(world.idIndexMap[it])
+proc fullEntityIdSet(world: World): set[EntityId] =
+  return world.entities.mapIt(it.id).toSet()
 
-proc update(system: System, world: World) {.raises: [Exception].} =
-  system.updateTargets(world)
-  system.process(system.targetedEntities, world.commands)
+proc intersection(
+    world: World,
+    targets: seq[string]
+): set[EntityId] {.raises: [KeyError].} =
+  result = targets.mapIt(world.getOrEmpty(it)).foldl(
+    a * b
+  )
+
+proc union(
+    world: World,
+    targets: seq[string]
+): set[EntityId] {.raises: [KeyError].} =
+  result = targets.mapIt(world.getOrEmpty(it)).foldl(
+    a + b
+  )
+
+proc queryEntities(
+    world: World,
+    spec: SystemSpec
+): set[EntityId] {.raises: [KeyError].} =
+  let qAll = case spec.qAll.len
+    of 0: world.fullEntityIdSet
+    of 1: world.getOrEmpty(spec.qAll[0])
+    else: world.intersection(spec.qAll)
+
+  let qAny = case spec.qAny.len
+    of 0: world.fullEntityIdSet
+    of 1: world.getOrEmpty(spec.qAny[0])
+    else: world.union(spec.qAny)
+
+  let qNone = case spec.qNone.len
+    of 0: {}
+    of 1: world.getOrEmpty(spec.qNone[0])
+    else: world.union(spec.qNone)
+
+  result = qAll * qAny - qNone
+  result.excl InvalidEntityId
+
+proc update(system: System, spec: SystemSpec, world: World) {.raises: [Exception].} =
+  let targetedEntities = world.queryEntities(spec)
+  system(world.commands, targetedEntities.mapIt(world.idIndexMap[it]))
 
 proc create*(world: World): Entity {.discardable.} =
   if world.freeIds.len == 0:
@@ -169,9 +198,6 @@ proc create*(world: World): Entity {.discardable.} =
 
 proc entities*(world: World): seq[Entity] =
   return world.entities
-
-proc fullEntityIdSet*(world: World): set[EntityId] =
-  return world.entities.mapIt(it.id).toSet()
 
 proc getEntity*(world: World, id: EntityId): Entity {.raises: [KeyError].} =
   return world.idIndexMap[id]
@@ -296,26 +322,57 @@ proc delete*(entity: Entity) =
   entity.world.deleteEntity(entity)
   entity.id = InvalidEntityId
 
-proc registerSystems*(world: World, systems: varargs[System]) =
-  world.systems.add systems
+macro registerSystems*(world: World, systems: varargs[untyped]) =
+  result = newStmtList()
+  for system in systems:
+    let
+      systemName = system.strVal
+      systemSpec = specTable[systemName]
+      systemNameLit = systemName.newLit()
 
-proc registerStartupSystems*(world: World, systems: varargs[System]) =
-  world.startupSystems.add systems
+    result.add quote do:
+      `world`.systems[`systemNameLit`] = `system`
+      `world`.systemSpecList[`systemNameLit`] = `systemSpec`
 
-proc registerTerminateSystems*(world: World, systems: varargs[System]) =
-  world.terminateSystems.add systems
+macro registerStartupSystems*(world: World, systems: varargs[untyped]) =
+  result = newStmtList()
+  for system in systems:
+    let
+      systemName = system.strVal
+      systemSpec = specTable[systemName]
+      systemNameLit = systemName.newLit()
+
+    result.add quote do:
+      `world`.startupSystems[`systemNameLit`] = `system`
+      `world`.systemSpecList[`systemNameLit`] = `systemSpec`
+
+macro registerTerminateSystems*(world: World, systems: varargs[untyped]) =
+  result = newStmtList()
+  for system in systems:
+    let
+      systemName = system.strVal
+      systemSpec = specTable[systemName]
+      systemNameLit = systemName.newLit()
+
+    result.add quote do:
+      `world`.terminateSystems[`systemNameLit`] = `system`
+      `world`.systemSpecList[`systemNameLit`] = `systemSpec`
 
 proc runSystems*(world: World) {.raises: [Exception].} =
-  for system in world.systems:
-    system.update(world)
+  for name, system in world.systems:
+    system.update(world.systemSpecList[name], world)
 
 proc runStartupSystems*(world: World) {.raises: [Exception].} =
-  for system in world.startupSystems:
-    system.update(world)
+  for name, system in world.startupSystems:
+    system.update(world.systemSpecList[name], world)
 
 proc runTerminateSystems*(world: World) {.raises: [Exception].} =
-  for system in world.terminateSystems.reversed():
-    system.update(world)
+  var nameList: seq[string]
+  for name in world.terminateSystems.keys():
+    nameList = name & nameList
+  for name in nameList:
+    let system = world.terminateSystems[name]
+    system.update(world.systemSpecList[name], world)
 
 iterator items*[T](event: Event[T]): T =
   for v in event.queue:
@@ -369,9 +426,6 @@ macro updateResource*(commands: Commands; args: untyped): untyped =
 
   for assignment in assignmentList:
     result[1].add assignment
-
-proc registerSystems*(commands: Commands, systems: varargs[System]) =
-  commands.world.registerSystems(systems)
 
 proc eventOf*(commands: Commands, T: typedesc): Event[T] {.raises: [KeyError].} =
   return commands.world.eventOf(T)
