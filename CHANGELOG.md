@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `Event` type and procedures for operating events
 - `Event[T]` argument for systems to specify the event queue to receive
 
+### Changed
+- Changed internal query process
+
 ### Fixed
 - Fixed an issue on exporting systems
 - Fixed the order of Terminate systems
