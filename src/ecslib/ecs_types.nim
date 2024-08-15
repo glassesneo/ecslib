@@ -22,6 +22,7 @@ type
     components: Table[string, AbstractComponent]
     resources: Table[string, AbstractResource]
     events*: Table[string, AbstractEvent]
+    eventReceiptCounter: Table[string, int]
     systems, startupSystems, terminateSystems: OrderedTable[string, System]
     systemSpecList: CritBitTree[SystemSpec]
 
@@ -45,8 +46,7 @@ type
     data: T
 
   AbstractEvent* = ref object of RootObj
-    referenceCount: int
-    nextReferenceCount: int
+    refCount: int
 
   Event*[T] = ref object of AbstractEvent
     queue: seq[T]
@@ -183,11 +183,6 @@ proc queryEntities(
   result = qAll * qAny - qNone
   result.excl InvalidEntityId
 
-proc countNextReference(world: World, events: seq[string]) {.raises: [KeyError].} =
-  # count how many times an event will get received in next frame
-  for e in events:
-    world.events[e].nextReferenceCount += 1
-
 proc update(system: System, spec: SystemSpec, world: World) {.raises: [Exception].} =
   let targetedEntities = world.queryEntities(spec)
   system(world.commands, targetedEntities.mapIt(world.idIndexMap[it]))
@@ -251,21 +246,21 @@ proc eventOf*(world: World, T: typedesc): Event[T] {.raises: [KeyError].} =
   return cast[Event[T]](world.events[typetraits.name(T)])
 
 proc addEvent*(world: World, T: typedesc) =
-  world.events[typetraits.name(T)] = Event[T](
-    referenceCount: 0,
-    nextReferenceCount: 0,
+  let typeName = typetraits.name(T)
+  world.events[typeName] = Event[T](
+    refCount: 0,
     queue: newSeq[T](),
   )
+  world.eventReceiptCounter[typeName] = 0
 
 proc dispatchEvent*[T](world: World, data: T) {.raises: [KeyError].} =
   let event = world.eventOf(T)
   event.queue.add data
+  event.refCount = world.eventReceiptCounter[typetraits.name(T)]
 
 proc receiveEvent*(world: World, T: typedesc): Event[T] {.raises: [KeyError].} =
   result = world.eventOf(T)
-
-  if result.queue.len != 0:
-    result.referenceCount -= 1
+  result.refCount -= 1
 
 proc id*(entity: Entity): EntityId =
   return entity.id
@@ -369,9 +364,16 @@ macro registerTerminateSystems*(world: World, systems: varargs[untyped]) =
       `world`.systemSpecList[`systemNameLit`] = `systemSpec`
 
 proc runSystems*(world: World) {.raises: [Exception].} =
+  for key in world.eventReceiptCounter.keys():
+    world.eventReceiptCounter[key] = 0
+
+  for name in world.systems.keys():
+    let spec = world.systemSpecList[name]
+    for T in spec.events:
+      world.eventReceiptCounter[T] += 1
+
   for name, system in world.systems:
     let spec = world.systemSpecList[name]
-    world.countNextReference(spec.events)
     system.update(spec, world)
 
 proc runStartupSystems*(world: World) {.raises: [Exception].} =
@@ -393,10 +395,8 @@ iterator items*[T](event: Event[T]): T =
     yield v
 
 proc checkReferenceCount*[T](event: Event[T]) =
-  if event.referenceCount <= 0:
+  if event.refCount <= 0:
     event.queue = @[]
-    event.referenceCount = event.nextReferenceCount
-    event.nextReferenceCount = 0
 
 proc clearQueue*[T](event: Event[T]) =
   event.queue = @[]

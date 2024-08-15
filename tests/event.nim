@@ -10,20 +10,22 @@ type
   SomeEvent = ref object
     id: int
 
+var count = 0
+
+proc sendEvent* {.system.} =
+  commands.dispatchEvent(SomeEvent(id: count))
+  count += 1
+
 proc readEvent*(eventQueue: Event[SomeEvent]) {.system.} =
   for e in eventQueue:
     echo e.id
 
 let world = World.new()
 
-world.registerSystems(readEvent)
+world.registerSystems(sendEvent, readEvent)
 world.addEvent(SomeEvent)
 
-world.dispatchEvent(SomeEvent(id: 0))
-world.dispatchEvent(SomeEvent(id: 1))
-world.dispatchEvent(SomeEvent(id: 2))
-world.dispatchEvent(SomeEvent(id: 3))
 
-for i in 0..<2:
+for i in 0..<50:
   world.runSystems()
 
