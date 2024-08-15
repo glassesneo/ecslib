@@ -11,9 +11,8 @@ type
     id: int
 
 proc readEvent*(eventQueue: Event[SomeEvent]) {.system.} =
-  withEvent(eventQueue):
-    for e in eventQueue:
-      echo e.id
+  for e in eventQueue:
+    echo e.id
 
 let world = World.new()
 
@@ -25,5 +24,6 @@ world.dispatchEvent(SomeEvent(id: 1))
 world.dispatchEvent(SomeEvent(id: 2))
 world.dispatchEvent(SomeEvent(id: 3))
 
-world.runSystems()
+for i in 0..<2:
+  world.runSystems()
 

@@ -40,11 +40,13 @@ macro system*(theProc: untyped): untyped =
       newColonExpr(ident"qAll", quote do: @[]),
       newColonExpr(ident"qAny", quote do: @[]),
       newColonExpr(ident"qNone", quote do: @[]),
+      newColonExpr(ident"events", quote do: @[])
     )
 
   var
     resourceAssignmentList: seq[NimNode]
     eventAssignmentList: seq[NimNode]
+    eventCheckList: seq[NimNode]
 
   for query in queryParams[1..^1]:
     case query[1].kind
@@ -75,8 +77,11 @@ macro system*(theProc: untyped): untyped =
           let `instance` = `commandsName`.getResource(`queryType`)
 
       of "Event":
+        specNode[3][1][1].add queryType.strVal.newLit()
         eventAssignmentList.add quote do:
           let `instance` = `commandsName`.receiveEvent(`queryType`)
+        eventCheckList.add quote do:
+          `instance`.checkReferenceCount()
 
     else:
       error "Unsupported syntax", query[1]
@@ -89,11 +94,14 @@ macro system*(theProc: untyped): untyped =
   for assignment in eventAssignmentList.reversed:
     processNode.insert 0, assignment
 
+  for statement in eventCheckList:
+    processNode.add statement
+
   let systemName = theProc[0]
 
-  let systemNameString = theProc.name.strVal
-
   result = getAst genSystemProc(systemName, commandsName, entitiesName, processNode)
+
+  let systemNameString = theProc.name.strVal
 
   specTable[systemNameString] = specNode
   systemTable[systemNameString] = result

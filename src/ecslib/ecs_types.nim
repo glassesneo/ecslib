@@ -45,7 +45,8 @@ type
     data: T
 
   AbstractEvent* = ref object of RootObj
-    received*: bool
+    referenceCount: int
+    nextReferenceCount: int
 
   Event*[T] = ref object of AbstractEvent
     queue: seq[T]
@@ -53,7 +54,7 @@ type
   System* = proc(commands: Commands, entities: seq[Entity]) {.nimcall.}
 
   SystemSpec* = tuple
-    qAll, qAny, qNone: seq[string]
+    qAll, qAny, qNone, events: seq[string]
 
   Commands* = ref object
     world: World
@@ -182,6 +183,11 @@ proc queryEntities(
   result = qAll * qAny - qNone
   result.excl InvalidEntityId
 
+proc countNextReference(world: World, events: seq[string]) {.raises: [KeyError].} =
+  # count how many times an event will get received in next frame
+  for e in events:
+    world.events[e].nextReferenceCount += 1
+
 proc update(system: System, spec: SystemSpec, world: World) {.raises: [Exception].} =
   let targetedEntities = world.queryEntities(spec)
   system(world.commands, targetedEntities.mapIt(world.idIndexMap[it]))
@@ -246,16 +252,20 @@ proc eventOf*(world: World, T: typedesc): Event[T] {.raises: [KeyError].} =
 
 proc addEvent*(world: World, T: typedesc) =
   world.events[typetraits.name(T)] = Event[T](
+    referenceCount: 0,
+    nextReferenceCount: 0,
     queue: newSeq[T](),
-    received: false
   )
 
 proc dispatchEvent*[T](world: World, data: T) {.raises: [KeyError].} =
-  world.eventOf(T).queue.add data
+  let event = world.eventOf(T)
+  event.queue.add data
 
 proc receiveEvent*(world: World, T: typedesc): Event[T] {.raises: [KeyError].} =
   result = world.eventOf(T)
-  result.received = true
+
+  if result.queue.len != 0:
+    result.referenceCount -= 1
 
 proc id*(entity: Entity): EntityId =
   return entity.id
@@ -360,11 +370,14 @@ macro registerTerminateSystems*(world: World, systems: varargs[untyped]) =
 
 proc runSystems*(world: World) {.raises: [Exception].} =
   for name, system in world.systems:
-    system.update(world.systemSpecList[name], world)
+    let spec = world.systemSpecList[name]
+    world.countNextReference(spec.events)
+    system.update(spec, world)
 
 proc runStartupSystems*(world: World) {.raises: [Exception].} =
   for name, system in world.startupSystems:
-    system.update(world.systemSpecList[name], world)
+    let spec = world.systemSpecList[name]
+    system.update(spec, world)
 
 proc runTerminateSystems*(world: World) {.raises: [Exception].} =
   var nameList: seq[string]
@@ -372,21 +385,21 @@ proc runTerminateSystems*(world: World) {.raises: [Exception].} =
     nameList = name & nameList
   for name in nameList:
     let system = world.terminateSystems[name]
-    system.update(world.systemSpecList[name], world)
+    let spec = world.systemSpecList[name]
+    system.update(spec, world)
 
 iterator items*[T](event: Event[T]): T =
   for v in event.queue:
     yield v
 
+proc checkReferenceCount*[T](event: Event[T]) =
+  if event.referenceCount <= 0:
+    event.queue = @[]
+    event.referenceCount = event.nextReferenceCount
+    event.nextReferenceCount = 0
+
 proc clearQueue*[T](event: Event[T]) =
   event.queue = @[]
-
-macro withEvent*(event, body: untyped): untyped =
-  result = quote do:
-    block:
-      `body`
-    if `event`.received:
-      `event`.clearQueue()
 
 proc create*(commands: Commands): Entity {.discardable.} =
   return commands.world.create()
