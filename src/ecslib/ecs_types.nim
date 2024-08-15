@@ -2,7 +2,6 @@
 
 import
   std/[
-    critbits,
     hashes,
     macros,
     macrocache,
@@ -24,7 +23,7 @@ type
     events*: Table[string, AbstractEvent]
     eventReceiptCounter: Table[string, int]
     systems, startupSystems, terminateSystems: OrderedTable[string, System]
-    systemSpecList: CritBitTree[SystemSpec]
+    systemSpecList: Table[string, SystemSpec]
 
   EntityId* = uint16
 
