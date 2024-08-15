@@ -259,7 +259,8 @@ proc dispatchEvent*[T](world: World, data: T) {.raises: [KeyError].} =
 
 proc receiveEvent*(world: World, T: typedesc): Event[T] {.raises: [KeyError].} =
   result = world.eventOf(T)
-  result.refCount -= 1
+  if result.queue.len != 0:
+    result.refCount -= 1
 
 proc id*(entity: Entity): EntityId =
   return entity.id
