@@ -314,10 +314,10 @@ proc withBundle*(
 proc get*(entity: Entity, T: typedesc): T {.raises: [KeyError].} =
   return entity.world.getComponent(T, entity)
 
-proc `[]`*(entity: Entity, T: typedesc): T =
+proc `[]`*(entity: Entity, T: typedesc): T {.raises: [KeyError].} =
   return entity.get(T)
 
-proc `[]=`*(entity: Entity, T: typedesc, data: T) =
+proc `[]=`*(entity: Entity, T: typedesc, data: T) {.raises: [KeyError].} =
   entity.attach(data)
 
 proc detach*(entity: Entity, T: typedesc) {.raises: [KeyError].} =

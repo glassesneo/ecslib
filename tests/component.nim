@@ -31,6 +31,8 @@ entity.detach(Velocity)
 
 check entity.has("Position")
 
+entity[Position] = Position(x: 5, y: 10)
+
 check not entity.has(Velocity)
 
 check entity.hasAny(@["Position", "Velocity"])
