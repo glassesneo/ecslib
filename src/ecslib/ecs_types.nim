@@ -203,7 +203,7 @@ proc getEntity*(world: World, id: EntityId): Entity {.raises: [KeyError].} =
   return world.idIndexMap[id]
 
 proc isInvalidEntity(world: World, entity: Entity): bool =
-  return entity.id notin world.freeIds
+  return entity.id == InvalidEntityId
 
 proc addResource*[T](world: World, data: T) =
   world.resources[typetraits.name(T)] = Resource[T](data: data)
@@ -269,7 +269,7 @@ proc `$`*(entity: Entity): string =
   return "Entity(id: " & $entity.id & ")"
 
 proc isValid*(entity: Entity): bool =
-  entity.world.isInvalidEntity(entity)
+  not entity.world.isInvalidEntity(entity)
 
 proc has*(entity: Entity, T: typedesc): bool {.raises: [KeyError].} =
   return entity.world.has(T) and entity.world.componentOf(T).has(entity)

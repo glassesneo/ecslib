@@ -14,3 +14,5 @@ check entity == world.getEntity(entity.id)
 
 entity.delete()
 
+check not entity.isValid()
+
