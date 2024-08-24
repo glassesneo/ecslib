@@ -159,7 +159,7 @@ macro each*(loop: ForLoopStmt): untyped =
 
   let createInstances = newStmtList()
 
-  let entityName = ident"entity"
+  let indexName = ident (entities.strVal & "index")
 
   for i in 0..<instanceList.len:
     let
@@ -167,10 +167,10 @@ macro each*(loop: ForLoopStmt): untyped =
       component = componentList[i]
 
     createInstances.add quote do:
-      let `instance` = `entityName`.get(`component`)
+      let `instance` = `entities`[`indexName`].get(`component`)
 
   result = quote do:
-    for `entityName` in `entities`:
+    for `indexName` in 0..<`entities`.len():
       `createInstances`
       `body`
 
