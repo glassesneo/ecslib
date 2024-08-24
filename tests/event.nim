@@ -3,7 +3,6 @@ discard """
 """
 
 import
-  std/tables,
   ../src/ecslib
 
 type

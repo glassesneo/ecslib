@@ -4,7 +4,6 @@ discard """
 
 import
   macros,
-  tables,
   ../src/ecslib
 
 type
