@@ -3,6 +3,8 @@ discard """
 """
 
 import
+  macros,
+  tables,
   ../src/ecslib
 
 type
@@ -19,19 +21,23 @@ type
   Name = ref object
     name: string
 
-proc startup(All: [Name]) {.system.} =
+proc startup(entities: [All[Name]]) {.system.} =
   for name in each(entities, [Name]):
     echo name.name
   echo "=====Startup!====="
 
-proc moveSystem(All: [Position, Velocity], None: [C]) {.system.} =
+proc moveSystem(
+    entities: [All[Position, Velocity], None[C]],
+    entities2: [All[C]]
+) {.system.} =
   for pos, vel in each(entities, [Position, Velocity]):
     pos.x += vel.x
     pos.y += vel.y
 
+  echo entities2
+
 proc showPositionSystem(
-    All: [Position, Velocity, Name],
-    Any: [A, B]
+    entities: [All[Position, Velocity, Name], Any[A, B]]
 ) {.system.} =
   for pos, name in each(entities, [Position, Name]):
     echo "[", name.name, "]"
@@ -49,6 +55,7 @@ let world = World.new()
 let
   ball1 = world.create()
   ball2 = world.create()
+  ball3 = world.create()
 
 ball1
   .attach(
@@ -70,6 +77,15 @@ ball2
     B()
   ).attach(
     Name(name: "ball2")
+  )
+
+ball3
+  .attach(
+    Position(x: 0, y: 0)
+  ).attach(
+    Velocity(x: 0, y: 0)
+  ).attach(
+    C()
   )
 
 world.registerStartupSystems(startup)

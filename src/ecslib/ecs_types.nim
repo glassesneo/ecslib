@@ -23,7 +23,8 @@ type
     events*: Table[string, AbstractEvent]
     eventReceiptCounter: Table[string, int]
     systems, startupSystems, terminateSystems: OrderedTable[string, System]
-    systemSpecList: Table[string, SystemSpec]
+    systemSpecTable: Table[string, SystemSpec]
+    runtimeQueryTable: Table[string, Table[string, seq[Entity]]]
 
   EntityId* = uint16
 
@@ -50,10 +51,17 @@ type
   Event*[T] = ref object of AbstractEvent
     queue: seq[T]
 
-  System* = proc(commands: Commands, entities: seq[Entity]) {.nimcall.}
+  System* = proc(
+    commands: Commands,
+    queryPack: Table[string, seq[Entity]]
+  ) {.nimcall.}
+
+  Query* = tuple
+    qAll, qAny, qNone: seq[string]
 
   SystemSpec* = tuple
-    qAll, qAny, qNone, events: seq[string]
+    queryTable: Table[string, Query]
+    eventList: seq[string]
 
   Commands* = ref object
     world: World
@@ -148,43 +156,47 @@ proc intersection(
     world: World,
     targets: seq[string]
 ): set[EntityId] {.raises: [KeyError].} =
-  result = targets.mapIt(world.getOrEmpty(it)).foldl(
-    a * b
-  )
+  result = targets
+    .mapIt(world.getOrEmpty(it)).foldl(a * b)
 
 proc union(
     world: World,
     targets: seq[string]
 ): set[EntityId] {.raises: [KeyError].} =
-  result = targets.mapIt(world.getOrEmpty(it)).foldl(
-    a + b
-  )
+  result = targets
+    .mapIt(world.getOrEmpty(it)).foldl(a + b)
 
 proc queryEntities(
     world: World,
-    spec: SystemSpec
+    query: Query
 ): set[EntityId] {.raises: [KeyError].} =
-  let qAll = case spec.qAll.len
+  let qAll = case query.qAll.len
     of 0: world.fullEntityIdSet
-    of 1: world.getOrEmpty(spec.qAll[0])
-    else: world.intersection(spec.qAll)
+    of 1: world.getOrEmpty(query.qAll[0])
+    else: world.intersection(query.qAll)
 
-  let qAny = case spec.qAny.len
+  let qAny = case query.qAny.len
     of 0: world.fullEntityIdSet
-    of 1: world.getOrEmpty(spec.qAny[0])
-    else: world.union(spec.qAny)
+    of 1: world.getOrEmpty(query.qAny[0])
+    else: world.union(query.qAny)
 
-  let qNone = case spec.qNone.len
+  let qNone = case query.qNone.len
     of 0: {}
-    of 1: world.getOrEmpty(spec.qNone[0])
-    else: world.union(spec.qNone)
+    of 1: world.getOrEmpty(query.qNone[0])
+    else: world.union(query.qNone)
 
   result = qAll * qAny - qNone
   result.excl InvalidEntityId
 
-proc update(system: System, spec: SystemSpec, world: World) {.raises: [Exception].} =
-  let targetedEntities = world.queryEntities(spec)
-  system(world.commands, targetedEntities.mapIt(world.idIndexMap[it]))
+proc update(system: System, systemName: string, world: World) {.raises: [Exception].} =
+  let spec = world.systemSpecTable[systemName]
+  for queryName, query in spec.queryTable:
+    let targetedEntities = world.queryEntities(query)
+    world.runtimeQueryTable[systemName][queryName] = targetedEntities.mapIt(
+      world.idIndexMap[it]
+    )
+
+  system(world.commands, world.runtimeQueryTable[systemName])
 
 proc create*(world: World): Entity {.discardable.} =
   if world.freeIds.len == 0:
@@ -337,7 +349,11 @@ macro registerSystems*(world: World, systems: varargs[untyped]) =
 
     result.add quote do:
       `world`.systems[`systemNameLit`] = `system`
-      `world`.systemSpecList[`systemNameLit`] = `systemSpec`
+      `world`.systemSpecTable[`systemNameLit`] = `systemSpec`
+      `world`.runtimeQueryTable[`systemNameLit`] =
+        initTable[string, seq[Entity]]()
+      for queryName in `systemSpec`.queryTable.keys():
+        `world`.runtimeQueryTable[`systemNameLit`][queryName] = @[]
 
 macro registerStartupSystems*(world: World, systems: varargs[untyped]) =
   result = newStmtList()
@@ -349,7 +365,11 @@ macro registerStartupSystems*(world: World, systems: varargs[untyped]) =
 
     result.add quote do:
       `world`.startupSystems[`systemNameLit`] = `system`
-      `world`.systemSpecList[`systemNameLit`] = `systemSpec`
+      `world`.systemSpecTable[`systemNameLit`] = `systemSpec`
+      `world`.runtimeQueryTable[`systemNameLit`] =
+        initTable[string, seq[Entity]]()
+      for queryName in `systemSpec`.queryTable.keys():
+        `world`.runtimeQueryTable[`systemNameLit`][queryName] = @[]
 
 macro registerTerminateSystems*(world: World, systems: varargs[untyped]) =
   result = newStmtList()
@@ -361,25 +381,27 @@ macro registerTerminateSystems*(world: World, systems: varargs[untyped]) =
 
     result.add quote do:
       `world`.terminateSystems[`systemNameLit`] = `system`
-      `world`.systemSpecList[`systemNameLit`] = `systemSpec`
+      `world`.systemSpecTable[`systemNameLit`] = `systemSpec`
+      `world`.runtimeQueryTable[`systemNameLit`] =
+        initTable[string, seq[Entity]]()
+      for queryName in `systemSpec`.queryTable.keys():
+        `world`.runtimeQueryTable[`systemNameLit`][queryName] = @[]
 
 proc runSystems*(world: World) {.raises: [Exception].} =
   for key in world.eventReceiptCounter.keys():
     world.eventReceiptCounter[key] = 0
 
   for name in world.systems.keys():
-    let spec = world.systemSpecList[name]
-    for T in spec.events:
+    let spec = world.systemSpecTable[name]
+    for T in spec.eventList:
       world.eventReceiptCounter[T] += 1
 
   for name, system in world.systems:
-    let spec = world.systemSpecList[name]
-    system.update(spec, world)
+    system.update(name, world)
 
 proc runStartupSystems*(world: World) {.raises: [Exception].} =
   for name, system in world.startupSystems:
-    let spec = world.systemSpecList[name]
-    system.update(spec, world)
+    system.update(name, world)
 
 proc runTerminateSystems*(world: World) {.raises: [Exception].} =
   var nameList: seq[string]
@@ -387,8 +409,7 @@ proc runTerminateSystems*(world: World) {.raises: [Exception].} =
     nameList = name & nameList
   for name in nameList:
     let system = world.terminateSystems[name]
-    let spec = world.systemSpecList[name]
-    system.update(spec, world)
+    system.update(name, world)
 
 iterator items*[T](event: Event[T]): T =
   for v in event.queue:
