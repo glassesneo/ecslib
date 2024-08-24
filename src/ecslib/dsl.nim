@@ -159,7 +159,7 @@ macro each*(loop: ForLoopStmt): untyped =
 
   let createInstances = newStmtList()
 
-  let indexName = ident (entities.strVal & "index")
+  let indexName = ident(entities.strVal & "index")
 
   for i in 0..<instanceList.len:
     let
@@ -173,4 +173,28 @@ macro each*(loop: ForLoopStmt): untyped =
     for `indexName` in 0..<`entities`.len():
       `createInstances`
       `body`
+
+macro combination*(query: seq[Entity]; args, body: untyped): untyped =
+  args.expectKind(nnkBracket)
+
+  let
+    v1 = args[0][0]
+    c1 = args[0][1]
+    v2 = args[1][0]
+    c2 = args[1][1]
+
+  let
+    index1 = ident(query.strVal & "Index1")
+    index2 = ident(query.strVal & "Index2")
+    length = ident(query.strVal & "Length")
+
+  result = quote do:
+    block:
+      let `length` = `query`.len()
+      for `index1` in 0..<`length`:
+        for `index2` in 0..<`length`:
+          block:
+            let `v1` = `query`[`index1`].get(`c1`)
+            let `v2` = `query`[`index2`].get(`c2`)
+            `body`
 

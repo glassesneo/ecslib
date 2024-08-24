@@ -4,6 +4,7 @@ discard """
 
 import
   macros,
+  typetraits,
   ../src/ecslib
 
 type
@@ -14,7 +15,9 @@ type
     x, y: int
 
   A = ref object
+    id: int
   B = ref object
+    id: int
   C = ref object
 
   Name = ref object
@@ -33,7 +36,8 @@ proc moveSystem(
     pos.x += vel.x
     pos.y += vel.y
 
-  echo entities2
+    for c in each(entities2, [C]):
+      echo "nested"
 
 proc showPositionSystem(
     entities: [All[Position, Velocity, Name], Any[A, B]]
@@ -42,6 +46,12 @@ proc showPositionSystem(
     echo "[", name.name, "]"
     echo "  x: ", pos.x
     echo "  y: ", pos.y
+
+proc namePairSystem(
+    entities: [All[A, B]]
+) {.system.} =
+  entities.combination([a: A, b: B]):
+    echo a.type.name, a.id, " & ", b.type.name, b.id
 
 proc doNothing*() {.system.} =
   discard
@@ -87,9 +97,14 @@ ball3
     C()
   )
 
+for i in 0..<10:
+  world.create()
+    .attach(A(id: i))
+    .attach(B(id: i))
+
 world.registerStartupSystems(startup)
 world.registerSystems(moveSystem, showPositionSystem, doNothing)
-world.registerTerminateSystems(terminate)
+world.registerTerminateSystems(terminate, namePairSystem)
 
 if isMainModule:
   world.runStartupSystems()
