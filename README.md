@@ -33,14 +33,17 @@ ball
   )
 
 # You can define system using procedure syntax
-proc moveSystem(All: [Position, Velocity], time: Resource[Time]) {.system.} =
-  # Query targeted entities by `All`, `Any`, and `None` args
-  # Specify resources that will be used in the system
+proc moveSystem(
+    # Querying targeted entities by `All`, `Any`, and `None` args
+    entities: [All[Position, Velocity]],
+    time: Resource[Time]
+) {.system.} =
+  # specifying resources that will be used in the system
   for pos, vel in each(entities, [Position, Velocity]):
     pos.x += vel.x * time.deltaTime
     pos.y += vel.y * time.deltaTime
 
-proc showPositionSystem(All: [Position]) {.system.} =
+proc showPositionSystem(entities: [All[Position]]) {.system.} =
   for pos in each(entities, [Position]):
     echo "x: ", pos.x
     echo "y: ", pos.y
@@ -63,3 +66,4 @@ nimble install ecslib
 
 # License
 ecslib is licensed under the MIT license. See COPYING for details.
+
