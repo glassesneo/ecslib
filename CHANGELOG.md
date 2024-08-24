@@ -11,13 +11,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `Resource[T]` argument for systems to specify the resources used in the system
 - `Event` type and procedures for operating events
 - `Event[T]` argument for systems to specify the event queue to receive
+- `{.system.}` macro can now accept multiple queries
 
 ### Changed
 - Changed internal query process
+- Changed the grammar of `{.system.}` macro
 
 ### Fixed
 - Fixed an issue on exporting systems
 - Fixed the order of Terminate systems
+- Fixed `isValid()`
 
 ## [0.3.2] - 2024-07-13
 ### Changed
