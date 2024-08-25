@@ -411,6 +411,9 @@ proc runTerminateSystems*(world: World) {.raises: [Exception].} =
     let system = world.terminateSystems[name]
     system.update(name, world)
 
+proc len*[T](event: Event[T]): Natural =
+  return event.queue.len()
+
 iterator items*[T](event: Event[T]): T =
   for v in event.queue:
     yield v
