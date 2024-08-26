@@ -132,11 +132,13 @@ macro system*(theProc: untyped): untyped =
   for assignment in resourceAssignmentList.reversed:
     processNode.insert 0, assignment
 
+  let deferNode = nnkDefer.newTree(newStmtList())
+  for statement in eventCheckList:
+    deferNode[0].add statement
+  processNode.insert 0, deferNode
+
   for assignment in eventAssignmentList.reversed:
     processNode.insert 0, assignment
-
-  for statement in eventCheckList:
-    processNode.add statement
 
   let systemName = theProc[0]
 
