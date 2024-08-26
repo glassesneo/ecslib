@@ -20,7 +20,7 @@ type
     idIndexMap: Table[EntityId, Entity]
     components: Table[string, AbstractComponent]
     resources: Table[string, AbstractResource]
-    events*: Table[string, AbstractEvent]
+    events: Table[string, AbstractEvent]
     eventReceiptCounter: Table[string, int]
     systems, startupSystems, terminateSystems: OrderedTable[string, System]
     systemSpecTable: Table[string, SystemSpec]
