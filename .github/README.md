@@ -55,7 +55,7 @@ world.addResource(Time(deltaTime: 30))
 world.registerSystem(moveSystem)
 world.registerSystem(showPositionSystem)
 
-for i in 0..<10:
+while true:
   world.runSystems()
 ```
 

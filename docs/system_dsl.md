@@ -47,9 +47,7 @@ proc changeColor*(
   ...
 ```
 
-<br><br>
-
-Also, `System` can take multiple queries.
+Also, multiple queries are allowed.
 ```nim
 proc detectArrowCollision*(
     arrowQuery: [All[Arrow, Rigidbody]],
@@ -76,7 +74,7 @@ proc renderRectangle*(
 ```
 
 ### Event[T]
-An iterable object that has a queue of type `T`. The queue is cleared per a frame.
+An iterable object that has a queue of type `T`. The queue is cleared per a frame after all the systems receive the events.
 For sending an event, please use `dispatchEvent[T]`.
 
 #### example
@@ -112,7 +110,7 @@ proc motion*(
     rb.velocity += rb.acceleration * dt
     tf.position += rb.velocity * dt
 ```
-`each` takes a query as the 1st argument, an array of components as the 2nd argument.
+`each` takes a query as the 1st argument and an array of components as the 2nd argument.
 
 <br><br>
 
