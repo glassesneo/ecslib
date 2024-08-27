@@ -1,5 +1,5 @@
 # World
-World manage everything for Entity Component System.
+`World` manage everything for Entity Component System.
 
 ```nim
 let world = World.new()
@@ -124,7 +124,7 @@ macro registerTerminateSystems*(world: World, systems: varargs[untyped])
 Registers `systems` to a system queue that will run only once when the app quits.
 
 # Entity
-Entity represents a game object, which Any ref types can be attached to. Only `World` can create a new one.
+Entity represents a game object, which any ref types can be attached to. Only `World` can create a new one.
 
 ## fields
 ```nim
