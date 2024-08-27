@@ -102,7 +102,7 @@ proc getOrEmpty*(world: World, T: string): set[EntityId] {.raises: [KeyError].} 
   else:
     {}
 
-proc hash*(entity: Entity): Hash {.inline.} =
+proc hash*(entity: Entity): Hash =
   entity.id.hash()
 
 proc has(component: AbstractComponent, entity: Entity): bool =
