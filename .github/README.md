@@ -59,15 +59,15 @@ while true:
   world.runSystems()
 ```
 
-## Document
-See:
-- [API.md](../docs/API.md) for basic usage
-- [system_dsl.md](../docs/system_dsl.md) for system grammer
-
 ## Installation
 ```nim
 nimble install ecslib
 ```
+
+## Documentation
+See:
+- [API.md](../docs/API.md) for basic usage
+- [system_dsl.md](../docs/system_dsl.md) for system grammer
 
 ## License
 ecslib is licensed under the MIT license. See COPYING for details.
