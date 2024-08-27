@@ -1,4 +1,4 @@
-# Overview
+# ecslib
 ## Easier and simpler game development with ECS
 ecslib is a super cool and accomplished nimble package for Entity Component System.
 
@@ -59,11 +59,16 @@ for i in 0..<10:
   world.runSystems()
 ```
 
+## Document
+See:
+- [API.md](../docs/API.md) for basic usage
+- [system_dsl.md](../docs/system_dsl.md) for system grammer
+
 ## Installation
 ```nim
 nimble install ecslib
 ```
 
-# License
+## License
 ecslib is licensed under the MIT license. See COPYING for details.
 
