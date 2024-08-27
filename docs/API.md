@@ -72,7 +72,7 @@ Sends an event to the event queue of type `T`. `world.addEvent(T)` must be calle
 ```nim
 proc receiveEvent*(world: World, T: typedesc): Event[T] {.raises: [KeyError].}
 ```
-Receives the event queue of type `T`. Do not call this procedure manually.<br><br>
+Receives the event queue of type `T`. **DO NOT** call this procedure manually.<br><br>
 
 ```nim
 proc runSystems*(world: World) {.raises: [Exception].}
@@ -208,7 +208,7 @@ Returns the length of `event` queue.<br><br>
 ```nim
 proc checkReferenceCount*[T](event: Event[T])
 ```
-Checks reference count for `event`. Do not call this procedure manually.<br><br>
+Checks reference count for `event`. **DO NOT** call this procedure manually.<br><br>
 
 ```nim
 proc clearQueue*[T](event: Event[T])
@@ -263,11 +263,11 @@ Sends an event to the event queue of type `T`. `world.addEvent(T)` must be calle
 ```nim
 proc receiveEvent*(commands: Commands, T: typedesc): Event[T] {.raises: [KeyError].}
 ```
-Receives the event queue of type `T`. Do not call this procedure manually.
+Receives the event queue of type `T`. **DO NOT** call this procedure manually.
 
 ## macros
 ```nim
 macro updateResource*(commands: Commands; args: untyped): untyped
 ```
-Update a component. Same usage as `world.updateResource(T())`<br><br>
+Updates a component. Same usage as `world.updateResource(T())`<br><br>
 
