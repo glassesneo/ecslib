@@ -25,11 +25,11 @@ world.registerSystems(addGravity)
 
 ### Query
 A sequence of entities queried by specifying what they have or what they don't. A query consists of these 3 constraints.
-- All
+- All<br>
   entities that have **all** of the components.
-- Any
+- Any<br>
   entity that have **any** of the components.
-- None
+- None<br>
   entity that have **none** of the components.
 
 #### example

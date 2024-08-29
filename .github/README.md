@@ -36,9 +36,10 @@ ball
 proc moveSystem(
     # Querying targeted entities by `All`, `Any`, and `None` args
     entities: [All[Position, Velocity]],
+    # Get the resource of type `Type`
     time: Resource[Time]
 ) {.system.} =
-  # specifying resources that will be used in the system
+  # specifying components that will be used in the system
   for pos, vel in each(entities, [Position, Velocity]):
     pos.x += vel.x * time.deltaTime
     pos.y += vel.y * time.deltaTime
