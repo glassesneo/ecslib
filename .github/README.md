@@ -1,6 +1,6 @@
 # ecslib
 ## Easier and simpler game development with ECS
-ecslib is a super cool and accomplished nimble package for Entity Component System.
+ecslib is a nimble package that implements a sparse set-based Entity Component System.
 
 ## Example
 
@@ -36,7 +36,7 @@ ball
 proc moveSystem(
     # Querying targeted entities by `All`, `Any`, and `None` args
     entities: [All[Position, Velocity]],
-    # Get the resource of type `Type`
+    # Get the resource of type `T`
     time: Resource[Time]
 ) {.system.} =
   # specifying components that will be used in the system
