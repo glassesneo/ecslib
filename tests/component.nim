@@ -2,8 +2,9 @@ discard """
   action: "run"
 """
 
+import std/unittest
+
 import
-  std/unittest,
   ../src/ecslib
 
 type
@@ -27,12 +28,15 @@ entity
 
 check entity.hasAll(@["Position", "Velocity"])
 
+check entity.get(Position).y == 15
+
+check entity[Velocity].x == 5
+
 entity.detach(Velocity)
 
 check entity.has("Position")
+check not entity.has(Velocity)
+check entity.hasAny(@["Position", "Velocity"])
 
 entity[Position] = Position(x: 5, y: 10)
 
-check not entity.has(Velocity)
-
-check entity.hasAny(@["Position", "Velocity"])

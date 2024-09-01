@@ -3,11 +3,13 @@ discard """
 """
 
 import
-  macros,
   typetraits,
   ../src/ecslib
 
 type
+  AppInfo = ref object
+    appName: string
+
   Position = ref object
     x, y: int
 
@@ -23,10 +25,13 @@ type
   Name = ref object
     name: string
 
-proc startup(entities: [All[Name]]) {.system.} =
+proc startup(
+    entities: [All[Name]],
+    appInfo: Resource[AppInfo]
+) {.system.} =
   for name in each(entities, [Name]):
     echo name.name
-  echo "=====Startup!====="
+  echo "=====Start ", appInfo.appName, "!====="
 
 proc moveSystem(
     entities: [All[Position, Velocity], None[C]],
@@ -102,6 +107,7 @@ for i in 0..<10:
     .attach(A(id: i))
     .attach(B(id: i))
 
+world.addResource(AppInfo(appName: "example"))
 world.registerStartupSystems(startup)
 world.registerSystems(moveSystem, showPositionSystem, doNothing)
 world.registerTerminateSystems(terminate, namePairSystem)

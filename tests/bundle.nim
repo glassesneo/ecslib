@@ -20,7 +20,7 @@ type
 
 let world = World.new()
 
-proc withPlayerBundle(entity: Entity, hp: HP, mp: MP): Entity =
+proc PlayerBundle(entity: Entity, hp: HP, mp: MP): Entity =
   return entity.withBundle((hp, mp))
 
 let entity {.used.} = world.create()
@@ -28,7 +28,8 @@ let entity {.used.} = world.create()
     Position(x: 5, y: 5),
     Velocity(x: 0, y: 0)
   ))
-  .withPlayerBundle(
+  .PlayerBundle(
     hp = HP(max: 200),
     mp = MP(max: 80)
   )
+
