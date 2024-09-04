@@ -60,6 +60,9 @@ while true:
   world.runSystems()
 ```
 
+> [!NOTE]
+> This project adopts Design by Contract for implementation. Please build your app with `--assertions:off` to run without assertions.
+
 ## Installation
 ```nim
 nimble install ecslib

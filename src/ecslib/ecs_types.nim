@@ -10,6 +10,10 @@ import
     setutils,
     tables,
     typetraits
+  ],
+  pkg/[
+    seiryu,
+    seiryu/dbc
   ]
 
 type
@@ -73,17 +77,15 @@ const specTable* = CacheTable"specTable"
 
 const InvalidEntityId*: EntityId = 0
 
-func new*(_: type Commands, world: World): Commands =
-  return Commands(world: world)
+func new*(T: type Commands, world: World): T {.construct.}
 
-func new*(_: type World): World =
-  result = World(nextId: 1)
+func new*(T: type World): T {.construct.} =
+  result.nextId = 1
   result.commands = Commands.new(result)
 
-func new(_: type Entity, id: EntityId, world: World): Entity =
-  return Entity(id: id, world: world)
+proc new(T: type Entity, id: EntityId, world: World): T {.construct.}
 
-func new[T](_: type Component[T]): Component[T] = Component[T]()
+func new[T](C: type Component[T]): C {.construct.}
 
 func resourceOf(world: World, T: typedesc): Resource[T] {.raises: [KeyError].} =
   return cast[Resource[T]](world.resources[typetraits.name(T)])
@@ -212,7 +214,16 @@ proc create*(world: World): Entity {.discardable.} =
 func entities*(world: World): seq[Entity] =
   return world.entities
 
-proc getEntity*(world: World, id: EntityId): Entity {.raises: [KeyError].} =
+proc getEntity*(
+    world: World, id: EntityId
+): Entity {.raises: [KeyError, ValueError].} =
+  precondition:
+    output "id:" & $id & " is not in the world"
+    id in world.idIndexMap
+
+  postcondition:
+    result in world.entities
+
   return world.idIndexMap[id]
 
 func isInvalidEntity(world: World, entity: Entity): bool =
@@ -221,7 +232,14 @@ func isInvalidEntity(world: World, entity: Entity): bool =
 func addResource*[T](world: World, data: T) =
   world.resources[typetraits.name(T)] = Resource[T](data: data)
 
-func getResource*(world: World, T: typedesc): T {.raises: [KeyError].} =
+func getResource*(
+    world: World, T: typedesc
+): T {.raises: [KeyError, ValueError].} =
+  precondition:
+    var typeName = typetraits.name(T)
+    output typeName & " does not exist"
+    typeName in world.resources
+
   return world.resourceOf(T).data
 
 func deleteResource*(world: World, T: typedesc) =
@@ -254,7 +272,14 @@ macro updateResource*(world: World; args: untyped): untyped =
   for assignment in assignmentList:
     result[1].add assignment
 
-func eventOf*(world: World, T: typedesc): Event[T] {.raises: [KeyError].} =
+func eventOf*(
+    world: World, T: typedesc
+): Event[T] {.raises: [KeyError, ValueError].} =
+  precondition:
+    var typeName = typetraits.name(T)
+    output typeName & " does not exist"
+    typeName in world.events
+
   return cast[Event[T]](world.events[typetraits.name(T)])
 
 func addEvent*(world: World, T: typedesc) =
@@ -265,12 +290,16 @@ func addEvent*(world: World, T: typedesc) =
   )
   world.eventReceiptCounter[typeName] = 0
 
-func dispatchEvent*[T](world: World, data: T) {.raises: [KeyError].} =
+func dispatchEvent*[T](
+    world: World, data: T
+) {.raises: [KeyError, ValueError].} =
   let event = world.eventOf(T)
   event.queue.add data
   event.refCount = world.eventReceiptCounter[typetraits.name(T)]
 
-func receiveEvent*(world: World, T: typedesc): Event[T] {.raises: [KeyError].} =
+func receiveEvent*(
+    world: World, T: typedesc
+): Event[T] {.raises: [KeyError, ValueError].} =
   result = world.eventOf(T)
   if result.queue.len != 0:
     result.refCount -= 1
@@ -324,10 +353,14 @@ func withBundle*(
     entity.attach(c)
   return entity
 
-func get*(entity: Entity, T: typedesc): T {.raises: [KeyError].} =
+func get*(entity: Entity, T: typedesc): T {.raises: [KeyError, ValueError].} =
+  precondition:
+    output $entity & " does not have " & typetraits.name(T)
+    entity.has(T)
+
   return entity.world.getComponent(T, entity)
 
-func `[]`*(entity: Entity, T: typedesc): T {.raises: [KeyError].} =
+func `[]`*(entity: Entity, T: typedesc): T {.raises: [KeyError, ValueError].} =
   return entity.get(T)
 
 func `[]=`*(entity: Entity, T: typedesc, data: T) {.raises: [KeyError].} =
@@ -429,13 +462,17 @@ proc clearQueue*[T](event: Event[T]) =
 proc create*(commands: Commands): Entity {.discardable.} =
   return commands.world.create()
 
-proc getEntity*(commands: Commands, id: EntityId): Entity {.raises: [KeyError].} =
+proc getEntity*(
+    commands: Commands, id: EntityId
+): Entity {.raises: [KeyError, ValueError].} =
   return commands.world.getEntity(id)
 
 func addResource*[T](commands: Commands, data: T) =
   commands.world.addResource(data)
 
-func getResource*(commands: Commands, T: typedesc): T {.raises: [KeyError].} =
+func getResource*(
+    commands: Commands, T: typedesc
+): T {.raises: [KeyError, ValueError].} =
   return commands.world.getResource(T)
 
 func hasResource*(commands: Commands, T: typedesc): bool =
@@ -468,9 +505,13 @@ macro updateResource*(commands: Commands; args: untyped): untyped =
 func eventOf*(commands: Commands, T: typedesc): Event[T] {.raises: [KeyError].} =
   return commands.world.eventOf(T)
 
-func dispatchEvent*[T](commands: Commands, data: T) {.raises: [KeyError].} =
+func dispatchEvent*[T](
+    commands: Commands, data: T
+) {.raises: [KeyError, ValueError].} =
   commands.world.dispatchEvent(data)
 
-func receiveEvent*(commands: Commands, T: typedesc): Event[T] {.raises: [KeyError].} =
+func receiveEvent*(
+    commands: Commands, T: typedesc
+): Event[T] {.raises: [KeyError, ValueError].} =
   return commands.world.receiveEvent(T)
 
