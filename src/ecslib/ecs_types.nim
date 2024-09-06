@@ -22,8 +22,7 @@ type
     resources: Table[string, AbstractResource]
     events: Table[string, AbstractEvent]
     eventReceiptCounter: Table[string, int]
-    systems, startupSystems, terminateSystems: OrderedTable[string, System]
-    systemSpecTable: Table[string, SystemSpec]
+    scheduler: SystemScheduler
     runtimeQueryTable: Table[string, Table[string, seq[Entity]]]
 
   EntityId* = uint16
@@ -51,6 +50,10 @@ type
   Event*[T] = ref object of AbstractEvent
     queue: seq[T]
 
+  SystemScheduler = object
+    systems, startupSystems, terminateSystems: OrderedTable[string, System]
+    systemSpecTable: Table[string, SystemSpec]
+
   System* = proc(
     commands: Commands,
     queryPack: Table[string, seq[Entity]]
@@ -72,11 +75,14 @@ const specTable* = CacheTable"specTable"
 
 const InvalidEntityId*: EntityId = 0
 
+func new(T: type SystemScheduler): T {.construct.}
+
 func new*(T: type Commands, world: World): T {.construct.}
 
 func new*(T: type World): T {.construct.} =
   result.nextId = 1
   result.commands = Commands.new(result)
+  result.scheduler = SystemScheduler.new()
 
 proc new(T: type Entity, id: EntityId, world: World): T {.construct.}
 
@@ -187,7 +193,7 @@ proc queryEntities(
   result.excl InvalidEntityId
 
 proc update(system: System, systemName: string, world: World) {.raises: [Exception].} =
-  let spec = world.systemSpecTable[systemName]
+  let spec = world.scheduler.systemSpecTable[systemName]
   for queryName, query in spec.queryTable:
     let targetedEntities = world.queryEntities(query)
     world.runtimeQueryTable[systemName][queryName] = targetedEntities.mapIt(
@@ -375,8 +381,8 @@ macro registerSystems*(world: World, systems: varargs[untyped]) =
       systemNameLit = systemName.newLit()
 
     result.add quote do:
-      `world`.systems[`systemNameLit`] = `system`
-      `world`.systemSpecTable[`systemNameLit`] = `systemSpec`
+      `world`.scheduler.systems[`systemNameLit`] = `system`
+      `world`.scheduler.systemSpecTable[`systemNameLit`] = `systemSpec`
       `world`.runtimeQueryTable[`systemNameLit`] =
         initTable[string, seq[Entity]]()
       for queryName in `systemSpec`.queryTable.keys():
@@ -391,8 +397,8 @@ macro registerStartupSystems*(world: World, systems: varargs[untyped]) =
       systemNameLit = systemName.newLit()
 
     result.add quote do:
-      `world`.startupSystems[`systemNameLit`] = `system`
-      `world`.systemSpecTable[`systemNameLit`] = `systemSpec`
+      `world`.scheduler.startupSystems[`systemNameLit`] = `system`
+      `world`.scheduler.systemSpecTable[`systemNameLit`] = `systemSpec`
       `world`.runtimeQueryTable[`systemNameLit`] =
         initTable[string, seq[Entity]]()
       for queryName in `systemSpec`.queryTable.keys():
@@ -407,8 +413,8 @@ macro registerTerminateSystems*(world: World, systems: varargs[untyped]) =
       systemNameLit = systemName.newLit()
 
     result.add quote do:
-      `world`.terminateSystems[`systemNameLit`] = `system`
-      `world`.systemSpecTable[`systemNameLit`] = `systemSpec`
+      `world`.scheduler.terminateSystems[`systemNameLit`] = `system`
+      `world`.scheduler.systemSpecTable[`systemNameLit`] = `systemSpec`
       `world`.runtimeQueryTable[`systemNameLit`] =
         initTable[string, seq[Entity]]()
       for queryName in `systemSpec`.queryTable.keys():
@@ -418,24 +424,24 @@ proc runSystems*(world: World) {.raises: [Exception].} =
   for key in world.eventReceiptCounter.keys():
     world.eventReceiptCounter[key] = 0
 
-  for name in world.systems.keys():
-    let spec = world.systemSpecTable[name]
+  for name in world.scheduler.systems.keys():
+    let spec = world.scheduler.systemSpecTable[name]
     for T in spec.eventList:
       world.eventReceiptCounter[T] += 1
 
-  for name, system in world.systems:
+  for name, system in world.scheduler.systems:
     system.update(name, world)
 
 proc runStartupSystems*(world: World) {.raises: [Exception].} =
-  for name, system in world.startupSystems:
+  for name, system in world.scheduler.startupSystems:
     system.update(name, world)
 
 proc runTerminateSystems*(world: World) {.raises: [Exception].} =
   var nameList: seq[string]
-  for name in world.terminateSystems.keys():
+  for name in world.scheduler.terminateSystems.keys():
     nameList = name & nameList
   for name in nameList:
-    let system = world.terminateSystems[name]
+    let system = world.scheduler.terminateSystems[name]
     system.update(name, world)
 
 func len*[T](event: Event[T]): Natural =
