@@ -28,21 +28,21 @@ A sequence of entities queried by specifying what they have or what they don't. 
 - All<br>
   entities that have **all** of the components.
 - Any<br>
-  entity that have **any** of the components.
+  entities that have **any** of the components.
 - None<br>
-  entity that have **none** of the components.
+  entities that have **none** of the components.
 
 #### example
 ```nim
 proc checkCollision*(
-    objectQuery: [All[Rigidbody, Transform, RectangleCollider]]
     # some game objects each of which has `Rigidbody`, `Transform`, and `RectangleCollider`
+    objectQuery: [All[Rigidbody, Transform, RectangleCollider]]
 ) {.system.} =
   ...
 
 proc changeColor*(
-    textureQuery: [All[Material], Any[Circle, Rectangle]]
     # textures each of which has `Material`, and any of `Circle` and `Rectangle`
+    textureQuery: [All[Material], Any[Circle, Rectangle]]
 ) {.system.} =
   ...
 ```
@@ -50,10 +50,10 @@ proc changeColor*(
 Also, multiple queries are allowed.
 ```nim
 proc detectArrowCollision*(
-    arrowQuery: [All[Arrow, Rigidbody]],
     # entities each of which represents an arrow with `Rigidbody`
-    enemyQuery: [All[Enemy], None[Dead]]
+    arrowQuery: [All[Arrow, Rigidbody]],
     # enemies but their state is not `Dead`
+    enemyQuery: [All[Enemy], None[Dead]]
 ) {.system.} =
   ...
 ```
