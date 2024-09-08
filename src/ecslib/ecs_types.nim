@@ -51,6 +51,8 @@ type
     queue: seq[T]
 
   SystemScheduler = object
+    stageList: seq[string]
+    stageTable: Table[string, seq[string]]
     systems, startupSystems, terminateSystems: OrderedTable[string, System]
     systemSpecTable: Table[string, SystemSpec]
 
@@ -75,14 +77,17 @@ const specTable* = CacheTable"specTable"
 
 const InvalidEntityId*: EntityId = 0
 
-func new(T: type SystemScheduler): T {.construct.}
+func new(T: type SystemScheduler; stageList: seq[string]): T {.construct.} =
+  result.stageList = stageList
+  for stage in stageList:
+    result.stageTable[stage] = @[]
 
 func new*(T: type Commands, world: World): T {.construct.}
 
 func new*(T: type World): T {.construct.} =
   result.nextId = 1
   result.commands = Commands.new(result)
-  result.scheduler = SystemScheduler.new()
+  result.scheduler = SystemScheduler.new(@["update"])
 
 proc new(T: type Entity, id: EntityId, world: World): T {.construct.}
 
@@ -304,6 +309,19 @@ func receiveEvent*(
   if result.queue.len != 0:
     result.refCount -= 1
 
+proc arrangeStageList*(
+    world: World,
+    stageList: openArray[string]
+) =
+  if "update" notin stageList:
+    raiseAssert("update must be in the stage list")
+
+  world.scheduler.stageList = @[]
+  world.scheduler.stageTable.clear()
+  for stage in stageList:
+    world.scheduler.stageList.add stage
+    world.scheduler.stageTable[stage] = @[]
+
 func id*(entity: Entity): EntityId {.getter.}
 
 func `$`*(entity: Entity): string =
@@ -374,6 +392,7 @@ proc delete*(entity: Entity) =
 
 macro registerSystems*(world: World, systems: varargs[untyped]) =
   result = newStmtList()
+  let stage = "update".newLit()
   for system in systems:
     let
       systemName = system.strVal
@@ -381,6 +400,30 @@ macro registerSystems*(world: World, systems: varargs[untyped]) =
       systemNameLit = systemName.newLit()
 
     result.add quote do:
+      if `stage` notin `world`.scheduler.stageList:
+        raiseAssert("undeclared stage: " & `stage`)
+
+      `world`.scheduler.stageTable[`stage`].add `systemNameLit`
+      `world`.scheduler.systems[`systemNameLit`] = `system`
+      `world`.scheduler.systemSpecTable[`systemNameLit`] = `systemSpec`
+      `world`.runtimeQueryTable[`systemNameLit`] =
+        initTable[string, seq[Entity]]()
+      for queryName in `systemSpec`.queryTable.keys():
+        `world`.runtimeQueryTable[`systemNameLit`][queryName] = @[]
+
+macro registerSystems*(world: World, stage: string, systems: varargs[untyped]) =
+  result = newStmtList()
+  for system in systems:
+    let
+      systemName = system.strVal
+      systemSpec = specTable[systemName]
+      systemNameLit = systemName.newLit()
+
+    result.add quote do:
+      if `stage` notin `world`.scheduler.stageList:
+        raiseAssert("undeclared stage: " & `stage`)
+
+      `world`.scheduler.stageTable[`stage`].add `systemNameLit`
       `world`.scheduler.systems[`systemNameLit`] = `system`
       `world`.scheduler.systemSpecTable[`systemNameLit`] = `systemSpec`
       `world`.runtimeQueryTable[`systemNameLit`] =
@@ -429,8 +472,10 @@ proc runSystems*(world: World) {.raises: [Exception].} =
     for T in spec.eventList:
       world.eventReceiptCounter[T] += 1
 
-  for name, system in world.scheduler.systems:
-    system.update(name, world)
+  for stage in world.scheduler.stageList:
+    for name in world.scheduler.stageTable[stage]:
+      let system = world.scheduler.systems[name]
+      system.update(name, world)
 
 proc runStartupSystems*(world: World) {.raises: [Exception].} =
   for name, system in world.scheduler.startupSystems:
