@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - `Event` type and procedures for operating events
 - `Event[T]` argument for systems to specify the event queue to receive
 - `{.system.}` macro can now accept multiple queries
+- Stage list for organizing system order
 
 ### Changed
 - Changed internal query process
