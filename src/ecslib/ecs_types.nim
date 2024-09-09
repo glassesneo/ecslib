@@ -411,7 +411,7 @@ macro registerSystems*(world: World, systems: varargs[untyped]) =
       for queryName in `systemSpec`.queryTable.keys():
         `world`.runtimeQueryTable[`systemNameLit`][queryName] = @[]
 
-macro registerSystems*(world: World, stage: string, systems: varargs[untyped]) =
+macro registerSystemsAt*(world: World, stage: string, systems: varargs[untyped]) =
   result = newStmtList()
   for system in systems:
     let

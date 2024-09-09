@@ -42,6 +42,7 @@ proc moveSystem(
     pos.y += vel.y
 
     for c in each(entities2, [C]):
+      discard c
       echo "nested"
 
 proc showPositionSystem(

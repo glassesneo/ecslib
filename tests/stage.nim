@@ -3,23 +3,23 @@ discard """
 """
 
 import
-  ../src/ecslib
+  ../src/ecslib,
+  ./systems
 
-type
-  A = ref object
+proc echo1 {.system.} =
+  echo 1
 
-  B = ref object
+proc echo2 {.system.} =
+  echo 2
 
-  C = ref object
+proc echo3 {.system.} =
+  echo 3
 
-proc callA(AQuery: [All[A]]) {.system.} =
-  echo "Call A"
+proc echo4 {.system.} =
+  echo 4
 
-proc callB(AQuery: [All[B]]) {.system.} =
-  echo "Call B"
-
-proc callC(AQuery: [All[C]]) {.system.} =
-  echo "Call C"
+proc echo5 {.system.} =
+  echo 5
 
 let world = World.new()
 
@@ -29,9 +29,10 @@ world.arrangeStageList([
   "afterUpdate"
 ])
 
-world.registerSystems(callC)
-world.registerSystems("beforeUpdate", callB)
-world.registerSystems("afterUpdate", callA)
+world.registerSystems(echo2, echo3)
+world.registerSystemsAt("afterUpdate", echo4, echo5)
+world.registerSystemsAt("beforeUpdate", echo1)
+world.registerSystems(doNothing)
 
 world.runStartupSystems()
 world.runSystems()
