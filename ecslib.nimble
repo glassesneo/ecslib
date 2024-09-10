@@ -12,5 +12,3 @@ srcDir = "src"
 requires "nim >= 2.0.4"
 requires "seiryu"
 
-task tests, "Run all tests":
-  exec "testament p 'tests/*nim'"
