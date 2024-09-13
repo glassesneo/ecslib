@@ -29,7 +29,7 @@ proc startup(
     entities: [All[Name]],
     appInfo: Resource[AppInfo]
 ) {.system.} =
-  for name in each(entities, [Name]):
+  for _, name in entities[Name]:
     echo name.name
   echo "=====Start ", appInfo.appName, "!====="
 
@@ -37,18 +37,18 @@ proc moveSystem(
     entities: [All[Position, Velocity], None[C]],
     entities2: [All[C]]
 ) {.system.} =
-  for pos, vel in each(entities, [Position, Velocity]):
+  for _, pos, vel in entities[Position, Velocity]:
     pos.x += vel.x
     pos.y += vel.y
 
-    for c in each(entities2, [C]):
+    for _, c in entities2[C]:
       discard c
       echo "nested"
 
 proc showPositionSystem(
     entities: [All[Position, Velocity, Name], Any[A, B]]
 ) {.system.} =
-  for pos, name in each(entities, [Position, Name]):
+  for _, pos, name in entities[Position, Name]:
     echo "[", name.name, "]"
     echo "  x: ", pos.x
     echo "  y: ", pos.y

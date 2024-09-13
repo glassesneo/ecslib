@@ -93,24 +93,3 @@ proc changePlayerState(
       ...
 ```
 
-## utility macros
-```nim
-macro each*(loop: ForLoopStmt): untyped
-```
-Iterates over a query and generates variables of specified component types. Each component is mutable. `O(n)` operation, where n is the length of a query.
-
-### example
-```nim
-proc motion*(
-    query: [All[Rigidbody, Transform]],
-    fpsManager: Resource[FPSManager]
-) {.system.} =
-  let dt = fpsManager.deltaTime
-  for rb, tf in each(query, [Rigidbody, Transform]):
-    rb.velocity += rb.acceleration * dt
-    tf.position += rb.velocity * dt
-```
-`each` takes a query as the 1st argument and an array of components as the 2nd argument.
-
-<br><br>
-

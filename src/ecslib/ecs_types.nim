@@ -380,6 +380,15 @@ func get*(entity: Entity, T: typedesc): T {.raises: [KeyError].} =
 func `[]`*(entity: Entity, T: typedesc): T {.raises: [KeyError].} =
   return entity.get(T)
 
+func `[]`*(entity: Entity, T, U: typedesc): (T, U) {.raises: [KeyError].} =
+  return (entity.get(T), entity.get(U))
+
+func `[]`*(entity: Entity, T, U, V: typedesc): (T, U, V) {.raises: [KeyError].} =
+  return (entity.get(T), entity.get(U), entity.get(V))
+
+func `[]`*(entity: Entity, T, U, V, W: typedesc): (T, U, V, W) {.raises: [KeyError].} =
+  return (entity.get(T), entity.get(U), entity.get(V), entity.get(W))
+
 func `[]=`*(entity: Entity, T: typedesc, data: T) {.raises: [KeyError].} =
   entity.attach(data)
 
@@ -389,6 +398,38 @@ proc detach*(entity: Entity, T: typedesc) {.raises: [KeyError].} =
 proc delete*(entity: Entity) =
   entity.world.deleteEntity(entity)
   entity.id = InvalidEntityId
+
+iterator `[]`*(
+    query: seq[Entity],
+    T: typedesc
+): (Entity, T) {.raises: [KeyError].} =
+  for entity in query:
+    let t = entity[T]
+    yield (entity, t)
+
+iterator `[]`*(
+    query: seq[Entity],
+    T, U: typedesc
+): (Entity, T, U) {.raises: [KeyError].} =
+  for entity in query:
+    let (t, u) = entity[T, U]
+    yield (entity, t, u)
+
+iterator `[]`*(
+    query: seq[Entity],
+    T, U, V: typedesc
+): (Entity, T, U, V) {.raises: [KeyError].} =
+  for entity in query:
+    let (t, u, v) = entity[T, U, V]
+    yield (entity, t, u, v)
+
+iterator `[]`*(
+    query: seq[Entity],
+    T, U, V, W: typedesc
+): (Entity, T, U, V, W) {.raises: [KeyError].} =
+  for entity in query:
+    let (t, u, v, w) = entity[T, U, V, W]
+    yield (entity, t, u, v, w)
 
 macro registerSystems*(world: World, systems: varargs[untyped]) =
   result = newStmtList()

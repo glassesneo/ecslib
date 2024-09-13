@@ -149,33 +149,6 @@ macro system*(theProc: untyped): untyped =
   specTable[systemNameString] = specNode
   systemTable[systemNameString] = result
 
-macro each*(loop: ForLoopStmt): untyped =
-  let
-    instanceList = loop[0..^3]
-    entities = loop[^2][1]
-    componentList = loop[^2][2][0..^1]
-    body = newStmtList(loop[^1])
-
-  if instanceList.len != componentList.len:
-    error "The length of the variables and components doesn't match", loop
-
-  let createInstances = newStmtList()
-
-  let indexName = ident(entities.strVal & "index")
-
-  for i in 0..<instanceList.len:
-    let
-      instance = instanceList[i]
-      component = componentList[i]
-
-    createInstances.add quote do:
-      let `instance` = `entities`[`indexName`].get(`component`)
-
-  result = quote do:
-    for `indexName` in 0..<`entities`.len():
-      `createInstances`
-      `body`
-
 macro combination*(query: seq[Entity]; args, body: untyped): untyped =
   args.expectKind(nnkBracket)
 

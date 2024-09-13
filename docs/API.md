@@ -179,6 +179,21 @@ proc `[]`*(entity: Entity, T: typedesc): T {.raises: [KeyError].}
 An alias for `entity.get(T)`.<br><br>
 
 ```nim
+proc `[]`*(entity: Entity, T, U: typedesc): (T, U) {.raises: [KeyError].}
+```
+Returns `(entity.get(T), entity.get(U))`.<br><br>
+
+```nim
+proc `[]`*(entity: Entity, T, U, V: typedesc): (T, U, V) {.raises: [KeyError].}
+```
+Returns `(entity.get(T), entity.get(U), entity.get(V))`.<br><br>
+
+```nim
+proc `[]`*(entity: Entity, T, U, V, W: typedesc): (T, U, V, W) {.raises: [KeyError].}
+```
+Returns `(entity.get(T), entity.get(U), entity.get(V), entity.get(W))`.<br><br>
+
+```nim
 proc `[]=`*(entity: Entity, T: typedesc, data: T) {.raises: [KeyError].}
 ```
 An alias for `let component = entity[T]; component = data`.<br><br>
