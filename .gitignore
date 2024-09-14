@@ -5,3 +5,5 @@ examples/*
 !*.nim
 !*.nims
 nimbledeps/*
+nim.cfg
+
