@@ -95,7 +95,7 @@ macro system*(theProc: untyped): untyped =
         specNode[0][1][0][0].add newColonExpr(queryNameLit, queryNode)
 
       queryAssignmentList.add quote do:
-        let `queryName` {.used.} = queryPack[`queryNameLit`]
+        let `queryName` = queryPack[`queryNameLit`]
 
     of nnkBracketExpr:
       if query[1].len != 2:
