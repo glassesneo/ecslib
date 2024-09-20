@@ -33,6 +33,22 @@ proc startup(
     echo name.name
   echo "=====Start ", appInfo.appName, "!====="
 
+proc generateBall {.system.} =
+  commands.create()
+    .attach(Position())
+    .attach(Velocity())
+
+proc countBalls(balls: [All[Position, Velocity]]) {.system.} =
+  echo balls.len()
+
+proc detachBall(balls: [
+  All[Position, Velocity],
+  None[A, B, C, Name]]
+) {.system.} =
+  for ball in balls:
+    ball.detach(Position)
+    ball.detach(Velocity)
+
 proc moveSystem(
     entities: [All[Position, Velocity], None[C]],
     entities2: [All[C]]
@@ -40,10 +56,6 @@ proc moveSystem(
   for _, pos, vel in entities[Position, Velocity]:
     pos.x += vel.x
     pos.y += vel.y
-
-    for _, c in entities2[C]:
-      discard c
-      echo "nested"
 
 proc showPositionSystem(
     entities: [All[Position, Velocity, Name], Any[A, B]]
@@ -110,7 +122,9 @@ for i in 0..<10:
 
 world.addResource(AppInfo(appName: "example"))
 world.registerStartupSystems(startup)
-world.registerSystems(moveSystem, showPositionSystem, doNothing)
+world.registerSystems(
+  generateBall, countBalls, detachBall, moveSystem, showPositionSystem, doNothing
+)
 world.registerTerminateSystems(terminate, namePairSystem)
 
 if isMainModule:

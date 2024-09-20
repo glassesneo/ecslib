@@ -17,7 +17,6 @@ type
     freeIds: seq[EntityId]
     commands: Commands
     entities: seq[Entity]
-    reservedEntityIdSet: set[EntityId]
     idIndexMap: Table[EntityId, Entity]
     components: Table[string, AbstractComponent]
     resources: Table[string, AbstractResource]
@@ -36,7 +35,7 @@ type
     entityIdSet*: set[EntityId]
     indexTable: Table[Entity, int]
     freeIndex: seq[int]
-    entityIdSetToRelease: set[EntityId]
+    entitiesToRelease: seq[Entity]
 
   Component*[T] = ref object of AbstractComponent
     storage: seq[T]
@@ -152,7 +151,11 @@ func getComponent(world: World, T: typedesc, entity: Entity): T {.raises: [KeyEr
   return world.componentOf(T)[entity]
 
 proc detachComponent(world: World, T: typedesc, entity: Entity) {.raises: [KeyError].} =
-  world.components[typetraits.name(T)].entityIdSetToRelease.incl entity.id
+  world.components[typetraits.name(T)].entitiesToRelease.add entity
+
+proc releaseEntities(component: AbstractComponent) =
+  while component.entitiesToRelease.len() > 0:
+    component.deleteEntity component.entitiesToRelease.pop()
 
 proc deleteEntity(world: World, entity: Entity) =
   world.idIndexMap.del(entity.id)
@@ -209,20 +212,15 @@ proc update(system: System, systemName: string, world: World) {.raises: [Excepti
 
   system(world.commands, world.runtimeQueryTable[systemName])
 
-proc createEntity(world: World): Entity =
+proc create*(world: World): Entity {.discardable.} =
   if world.freeIds.len == 0:
     result = Entity.new(world.nextId, world)
     world.nextId += 1
   else:
     result = Entity.new(world.freeIds.pop, world)
 
-proc registerEntity(world: World, entity: Entity) =
-  world.entities.add entity
-  world.idIndexMap[entity.id] = entity
-
-proc create*(world: World): Entity {.discardable.} =
-  result = world.createEntity()
-  world.registerEntity(result)
+  world.entities.add result
+  world.idIndexMap[result.id] = result
 
 func entities*(world: World): seq[Entity] {.getter.}
 
@@ -328,19 +326,6 @@ proc arrangeStageList*(
   for stage in stageList:
     world.scheduler.stageList.add stage
     world.scheduler.stageTable[stage] = @[]
-
-proc releaseEntities(world: World) {.raises: [KeyError].} =
-  for component in world.components.values():
-    for id in component.entityIdSetToRelease:
-      component.entityIdSetToRelease.excl id
-      let entity = world.idIndexMap[id]
-      component.deleteEntity entity
-
-proc registerReservedEntities(world: World) {.raises: [KeyError].} =
-  for id in world.reservedEntityIdSet:
-    world.reservedEntityIdSet.excl id
-    let entity = world.idIndexMap[id]
-    world.registerEntity entity
 
 func id*(entity: Entity): EntityId {.getter.}
 
@@ -538,17 +523,15 @@ proc runSystems*(world: World) {.raises: [Exception].} =
       let system = world.scheduler.systems[name]
       system.update(name, world)
 
-  world.releaseEntities()
-
-  world.registerReservedEntities()
+  for component in world.components.values():
+    component.releaseEntities()
 
 proc runStartupSystems*(world: World) {.raises: [Exception].} =
   for name, system in world.scheduler.startupSystems:
     system.update(name, world)
 
-  world.releaseEntities()
-
-  world.registerReservedEntities()
+  for component in world.components.values():
+    component.releaseEntities()
 
 proc runTerminateSystems*(world: World) {.raises: [Exception].} =
   var nameList: seq[string]
@@ -558,7 +541,8 @@ proc runTerminateSystems*(world: World) {.raises: [Exception].} =
     let system = world.scheduler.terminateSystems[name]
     system.update(name, world)
 
-  world.releaseEntities()
+  for component in world.components.values():
+    component.releaseEntities()
 
 func len*[T](event: Event[T]): Natural =
   return event.queue.len()
@@ -575,8 +559,7 @@ proc clearQueue*[T](event: Event[T]) =
   event.queue = @[]
 
 proc create*(commands: Commands): Entity {.discardable.} =
-  result = commands.world.createEntity()
-  commands.world.reservedEntityIdSet.incl result.id
+  return commands.world.create()
 
 proc getEntity*(
     commands: Commands, id: EntityId
