@@ -574,6 +574,9 @@ func getResource*(
 ): T {.raises: [KeyError].} =
   return commands.world.getResource(T)
 
+func deleteResource*(commands: Commands, T: typedesc) =
+  commands.world.deleteResource(T)
+
 func hasResource*(commands: Commands, T: typedesc): bool =
   return commands.world.hasResource(T)
 
